@@ -1,0 +1,9 @@
+{
+  "name": "checkMultiTasking",
+  "version": "1.0.0",
+  "description": "统计在办任务数量，超过3项触发多任务警告（利特尔法则）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

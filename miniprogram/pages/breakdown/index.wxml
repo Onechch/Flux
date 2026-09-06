@@ -1,0 +1,69 @@
+<!-- pages/breakdown/index.wxml —— 流程拆解页 -->
+<view class="page">
+
+  <!-- 头部 -->
+  <view class="hero">
+    <view class="hero-title">🧠 流程拆解器</view>
+    <view class="hero-sub">输入目标，AI 自动拆解任务链并计算关键路径</view>
+  </view>
+
+  <!-- 目标输入 -->
+  <view class="input-card">
+    <input
+      class="goal-input"
+      placeholder="输入你的目标，如：完成季度汇报"
+      placeholder-class="input-ph"
+      value="{{goal}}"
+      maxlength="50"
+      disabled="{{isLoading}}"
+      bindinput="onGoalInput"
+      confirm-type="go"
+      bindconfirm="handleBreakdown" />
+    <button
+      class="btn-breakdown"
+      loading="{{isLoading}}"
+      disabled="{{isLoading}}"
+      bindtap="handleBreakdown">{{isLoading ? 'AI 拆解中…' : '🔨 智能拆解'}}</button>
+    <view wx:if="{{isLoading}}" class="loading-hint">AI 正在拆解目标，约需 5~15 秒，请稍候</view>
+  </view>
+
+  <!-- 拆解结果 -->
+  <view wx:if="{{hasResult}}" class="result">
+
+    <view class="result-header">
+      <text class="result-title">📋 子任务列表（共 {{tasks.length}} 项）</text>
+      <text wx:if="{{aiFallback}}" class="fallback-badge">示例数据 · AI 降级</text>
+    </view>
+
+    <!-- 子任务列表：关键路径红色高亮 -->
+    <view
+      wx:for="{{tasks}}"
+      wx:key="name"
+      class="task-item {{item.isCritical ? 'critical' : 'normal'}}">
+      <view class="task-name-row">
+        <text wx:if="{{item.isCritical}}" class="critical-flag">🔴</text>
+        <text class="task-index">{{index + 1}}.</text>
+        <text class="task-name">{{item.name}}</text>
+      </view>
+      <view class="task-meta">
+        <text>⏱ {{item.estimatedHours}}h</text>
+        <text>🔗 依赖：{{item.depText}}</text>
+      </view>
+    </view>
+
+    <!-- 总工期 -->
+    <view class="summary-box">
+      <view class="summary-label">📊 关键路径总工期</view>
+      <view class="total-time">{{totalDuration}} 小时</view>
+      <view class="critical-chain">{{criticalPathText}}</view>
+      <view class="summary-hint">标红任务为关键路径，决定项目最短工期</view>
+    </view>
+
+    <!-- 一键导入首页 -->
+    <button
+      class="btn-import"
+      loading="{{importing}}"
+      disabled="{{importing}}"
+      bindtap="handleImport">📥 一键导入首页</button>
+  </view>
+</view>

@@ -1,0 +1,8 @@
+<!-- pages/fluctuation/index.wxml —— 波动预警页（第 5 步开发：变更历史 + 牛鞭效应检测） -->
+<view class="placeholder">
+  <view class="ph-icon">📈</view>
+  <view class="ph-title">波动预警</view>
+  <view class="ph-desc">追踪任务变更历史</view>
+  <view class="ph-desc">检测牛鞭效应风险并一键重新排期</view>
+  <view class="ph-tag">下一步开发</view>
+</view>

@@ -1,0 +1,9 @@
+{
+  "name": "initDatabase",
+  "version": "1.0.0",
+  "description": "创建 tasks/projects 云数据库集合（幂等）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

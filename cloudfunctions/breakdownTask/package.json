@@ -1,0 +1,9 @@
+{
+  "name": "breakdownTask",
+  "version": "1.0.0",
+  "description": "调用 DeepSeek 大模型将目标拆解为带依赖关系的子任务列表",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}

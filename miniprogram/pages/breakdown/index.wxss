@@ -1,0 +1,186 @@
+/* pages/breakdown/index.wxss —— 流程拆解页（深蓝 + 关键路径红） */
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx 32rpx 60rpx;
+  box-sizing: border-box;
+  background: #0F1B33;
+}
+
+/* ---- 头部 ---- */
+.hero {
+  padding: 16rpx 0 32rpx;
+}
+.hero-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+}
+.hero-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+}
+
+/* ---- 目标输入 ---- */
+.input-card {
+  padding: 28rpx 24rpx;
+  border-radius: 18rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+}
+.goal-input {
+  height: 88rpx;
+  padding: 0 24rpx;
+  border-radius: 14rpx;
+  background: #0D1730;
+  color: #EAF0FA;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+}
+.input-ph {
+  color: #4A5570;
+}
+.btn-breakdown {
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, #F5872A, #FF7A00);
+  color: #FFFFFF;
+}
+.loading-hint {
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: #8A93A6;
+  text-align: center;
+}
+
+/* ---- 拆解结果 ---- */
+.result {
+  margin-top: 40rpx;
+  animation: rise 0.35s ease;
+}
+.result-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+.result-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #EAF0FA;
+}
+.fallback-badge {
+  font-size: 20rpx;
+  color: #FFB066;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(245, 135, 42, 0.14);
+}
+
+/* ---- 子任务列表：关键路径红色高亮 ---- */
+.task-item {
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  border-radius: 14rpx;
+  background: #16213E;
+}
+/* 关键路径：红色左边框 + 微红背景 */
+.task-item.critical {
+  border-left: 6rpx solid #FF4444;
+  background: rgba(255, 68, 68, 0.08);
+}
+.task-item.critical .task-name {
+  color: #FF5A5A;
+  font-weight: 700;
+}
+/* 非关键路径：灰色左边框 */
+.task-item.normal {
+  border-left: 6rpx solid #2A3C61;
+}
+
+.task-name-row {
+  display: flex;
+  align-items: baseline;
+}
+.critical-flag {
+  margin-right: 8rpx;
+  font-size: 24rpx;
+}
+.task-index {
+  margin-right: 10rpx;
+  font-size: 26rpx;
+  color: #5E6A85;
+}
+.task-name {
+  flex: 1;
+  font-size: 30rpx;
+  color: #D5DCEA;
+  word-break: break-all;
+}
+.task-meta {
+  display: flex;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  color: #5E6A85;
+}
+.task-meta text {
+  margin-right: 28rpx;
+}
+
+/* ---- 总工期 ---- */
+.summary-box {
+  margin-top: 28rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+  text-align: center;
+}
+.summary-label {
+  font-size: 24rpx;
+  color: #8A93A6;
+}
+.total-time {
+  margin-top: 12rpx;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #FF5A5A;
+}
+.critical-chain {
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #B98284;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.summary-hint {
+  margin-top: 12rpx;
+  font-size: 20rpx;
+  color: #4A5570;
+}
+
+/* ---- 一键导入 ---- */
+.btn-import {
+  margin-top: 32rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  text-align: center;
+  background: linear-gradient(135deg, #F5872A, #FF7A00);
+  color: #FFFFFF;
+}
+
+/* ---- 关键帧 ---- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(24rpx); }
+  to { opacity: 1; transform: none; }
+}

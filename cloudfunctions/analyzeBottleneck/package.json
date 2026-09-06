@@ -1,0 +1,9 @@
+{
+  "name": "analyzeBottleneck",
+  "version": "1.0.0",
+  "description": "扫描未完成任务，按预计耗时最长识别瓶颈任务（TOC）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

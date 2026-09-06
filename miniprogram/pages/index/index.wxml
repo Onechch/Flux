@@ -1,0 +1,118 @@
+<!-- pages/index/index.wxml —— 瓶颈仪表盘（首页） -->
+<view class="page">
+
+  <!-- 顶部：标题 + 在办大目标计数（子任务不计入） -->
+  <view class="top-bar">
+    <text class="top-title">瓶颈仪表盘</text>
+    <text class="top-count">进行中: {{activeTaskCount}} 项</text>
+  </view>
+
+  <!-- 多任务警告横幅（利特尔法则：在办大目标 > 3 触发） -->
+  <view wx:if="{{showWarning}}" class="warning-banner">
+    <text class="warning-icon">⚠️</text>
+    <text class="warning-text">{{warningMessage}}</text>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{!goals.length && !loading}}" class="empty-state">
+    <text class="empty-icon">🎯</text>
+    <view class="empty-title">没有进行中的目标</view>
+    <view class="empty-desc">添加一个目标，系统将为你锁定唯一瓶颈</view>
+  </view>
+
+  <!-- 大目标列表（首页只展示大目标；完成后从列表消失） -->
+  <view class="task-list">
+    <block wx:for="{{goals}}" wx:key="_id">
+      <view
+        wx:if="{{item.status !== 'completed'}}"
+        class="task-card {{item._id === bottleneckId ? 'bottleneck' : ''}} {{item.status === 'locked' ? 'locked' : ''}} {{item._id === burstTaskId ? 'burst-effect' : ''}}">
+
+        <!-- 大目标行（点击展开/收起子任务） -->
+        <view class="goal-row" data-id="{{item._id}}" bindtap="toggleGoal">
+          <text class="expand-arrow {{item.expanded ? 'expanded' : ''}}">▸</text>
+          <view class="goal-main">
+            <!-- 标签行 -->
+            <view class="card-tags">
+              <text wx:if="{{item._id === bottleneckId}}" class="tag tag-bottleneck">🔴 瓶颈目标</text>
+              <text wx:elif="{{item.status === 'locked'}}" class="tag tag-locked">🔒 已锁定</text>
+              <text wx:else class="tag tag-pending">待办</text>
+              <text wx:if="{{item.subTotal > 0}}" class="tag tag-sub">子任务 {{item.subDone}}/{{item.subTotal}}</text>
+            </view>
+
+            <!-- 目标名称（瓶颈大号加粗） -->
+            <view class="task-title">{{item.title}}</view>
+
+            <!-- 耗时信息 -->
+            <view class="task-meta">
+              <text>预计 {{item.estimatedHours}}h</text>
+              <text wx:if="{{item._id === bottleneckId}}">实际 {{item.displayHours}}h</text>
+            </view>
+
+            <!-- 进度条（仅瓶颈目标显示，平滑过渡） -->
+            <view wx:if="{{item._id === bottleneckId}}" class="progress-track">
+              <view class="progress-fill" style="width: {{item.progress}}%"></view>
+            </view>
+          </view>
+        </view>
+
+        <!-- 子任务列表（展开时显示；父目标非瓶颈时子任务同样锁定；橙色高亮为目标内卡点） -->
+        <view wx:if="{{item.expanded && item.subTotal > 0}}" class="subtask-list">
+          <view
+            wx:for="{{item.subtasks}}"
+            wx:for-item="sub"
+            wx:for-index="subIdx"
+            wx:key="_id"
+            class="subtask-row {{sub.status === 'completed' ? 'done' : ''}} {{sub.isBottleneck ? 'sub-bottleneck' : ''}}"
+            data-id="{{sub._id}}"
+            bindtap="completeSubtask">
+            <text class="sub-check">{{sub.status === 'completed' ? '✓' : '○'}}</text>
+            <text class="sub-title">{{subIdx + 1}}. {{sub.title}}</text>
+            <text wx:if="{{sub.isBottleneck}}" class="sub-tag-clog">🔴 卡点</text>
+            <text wx:if="{{sub.locked}}" class="sub-lock">🔒</text>
+            <text wx:else class="sub-hours">{{sub.estimatedHours}}h</text>
+          </view>
+        </view>
+
+        <!-- 完成按钮：仅"无子任务"的大目标显示（有子任务的由联动自动完成） -->
+        <view wx:if="{{item.subTotal === 0 && item.status !== 'locked'}}" class="card-actions">
+          <button
+            class="btn-complete"
+            loading="{{submitting && item._id === burstTaskId}}"
+            data-id="{{item._id}}"
+            catchtap="completeTask">完成</button>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 添加任务 -->
+  <view class="add-section">
+    <view wx:if="{{!showAddForm}}" class="add-toggle" bindtap="toggleAddForm">
+      <text class="add-toggle-icon">＋</text>
+      <text>添加目标</text>
+    </view>
+    <view wx:else class="add-form">
+      <input
+        class="form-input"
+        placeholder="目标名称，如：完成季度汇报"
+        placeholder-class="input-ph"
+        value="{{form.title}}"
+        bindinput="onTitleInput"
+        maxlength="30" />
+      <input
+        class="form-input"
+        type="digit"
+        placeholder="预计耗时（小时）"
+        placeholder-class="input-ph"
+        value="{{form.estimatedHours}}"
+        bindinput="onHoursInput" />
+      <view class="form-actions">
+        <button class="btn btn-ghost" bindtap="toggleAddForm">取消</button>
+        <button class="btn btn-primary" loading="{{submitting}}" bindtap="submitTask">加入队列</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 数据源标识：云同步 / 本地降级 -->
+  <view class="mode-badge">{{mode === 'cloud' ? '☁ 云端同步中' : '📴 本地模式（云环境未就绪）'}}</view>
+</view>

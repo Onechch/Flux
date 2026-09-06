@@ -1,0 +1,37 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/breakdown/index",
+    "pages/fluctuation/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#1B2A4A",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "个人运营官",
+    "backgroundColor": "#0F1B33",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "color": "#7C8699",
+    "selectedColor": "#F5872A",
+    "backgroundColor": "#121F3D",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "瓶颈"
+      },
+      {
+        "pagePath": "pages/breakdown/index",
+        "text": "流程"
+      },
+      {
+        "pagePath": "pages/fluctuation/index",
+        "text": "波动"
+      }
+    ]
+  },
+  "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
+  "sitemapLocation": "sitemap.json"
+}

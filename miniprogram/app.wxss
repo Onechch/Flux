@@ -1,0 +1,12 @@
+/* app.wxss —— 全局样式（深蓝主题） */
+page {
+  background: #0F1B33;
+  color: #EAF0FA;
+  font-size: 28rpx;
+  font-family: -apple-system, 'PingFang SC', 'Helvetica Neue', Helvetica, sans-serif;
+}
+
+/* 去除 button 默认边框 */
+button::after {
+  border: none;
+}
