@@ -296,6 +296,8 @@ function createDbMock(collections) {
     lt: (v) => ({ __op: 'lt', value: v }),
     lte: (v) => ({ __op: 'lte', value: v }),
     inc: (v) => ({ __op: 'inc', value: v }),
+    // 数组追加（对齐云开发 $push：字段不存在时自动创建为数组）
+    push: (v) => ({ __op: 'push', value: v }),
   }
 
   function match(doc, where) {
@@ -329,6 +331,10 @@ function createDbMock(collections) {
       const v = data[k]
       if (v && typeof v === 'object' && v.__op === 'inc') {
         doc[k] = (doc[k] || 0) + v.value
+      } else if (v && typeof v === 'object' && v.__op === 'push') {
+        const list = Array.isArray(doc[k]) ? doc[k] : []
+        const add = Array.isArray(v.value) ? v.value : [v.value]
+        doc[k] = list.concat(clone(add))
       } else {
         doc[k] = clone(v)
       }

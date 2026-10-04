@@ -1,9 +1,12 @@
 /**
- * tests/unit/api.test.js —— 数据访问层（utils/api.js，本地降级模式）
+ * tests/unit/api.test.js —— 数据访问层（utils/api.js）
  *
- * 用内存 Storage 代替云数据库，验证完整的数据管道：
+ * 本地降级模式：内存 Storage 代替云数据库，验证完整的数据管道
  * 校验 → 加密 → 写入 → 归一化读取，以及 modificationCount 的计数口径
  * （状态流转不计入，供牛鞭效应检测保留干净数据）。
+ *
+ * 云模式：云数据库替身驱动，覆盖只在云路径上才会走到的分支
+ * （分页取全、command.inc / command.push）。
  */
 
 'use strict'
@@ -12,7 +15,12 @@ const test = require('node:test')
 const assert = require('node:assert/strict')
 const path = require('node:path')
 
-const { clearMiniProgramCache, createStorage, createWxMock } = require('../helpers/runtime')
+const {
+  clearMiniProgramCache,
+  createDbMock,
+  createStorage,
+  createWxMock,
+} = require('../helpers/runtime')
 const knowledgeUtil = require(path.join(
   __dirname,
   '..',
@@ -37,11 +45,37 @@ async function loadApi(opts = {}) {
   return { api: api, storage: storage }
 }
 
+/**
+ * 载入一份云模式 api（云数据库替身可用 → initDatabase 成功 → mode = 'cloud'）。
+ * @param {Object} collections 各集合的初始文档
+ */
+async function loadCloudApi(collections) {
+  clearMiniProgramCache()
+  const db = createDbMock(collections || {})
+  const storage = createStorage()
+  global.wx = createWxMock({
+    storage: storage,
+    cloud: {
+      database: () => db,
+      callFunction: () => Promise.resolve({ result: { success: true } }),
+    },
+  })
+  const api = require(API_PATH)
+  const ok = await api.initDatabase()
+  return { api: api, db: db, storage: storage, ok: ok }
+}
+
 /* ==================== 初始化与降级 ==================== */
 
 test('无云能力时 initDatabase 降级为本地模式', async () => {
   const { api } = await loadApi()
   assert.equal(api.getMode(), 'local')
+})
+
+test('云能力可用时 initDatabase 切换到云模式', async () => {
+  const { api, ok } = await loadCloudApi({})
+  assert.equal(ok, true)
+  assert.equal(api.getMode(), 'cloud')
 })
 
 /* ==================== 任务：新增与读取 ==================== */
@@ -439,4 +473,93 @@ test('知识库：读取时兜底默认值', async () => {
   assert.equal(k.status, 'active')
   assert.equal(k.source, 'manual')
   assert.deepEqual(k.tags, [])
+})
+
+/* ==================== 云模式：分页取全 ==================== */
+
+/** 造 n 条云数据库文档 */
+function bulk(n, prefix, extra) {
+  const out = []
+  for (let i = 1; i <= n; i++) {
+    out.push(
+      Object.assign(
+        { _id: prefix + i, title: prefix + i, createdAt: i, updatedAt: i },
+        extra || {}
+      )
+    )
+  }
+  return out
+}
+
+test('云模式：loadTasks 超过 100 条时分页取全', async () => {
+  const { api } = await loadCloudApi({ tasks: bulk(150, 't') })
+  const tasks = await api.loadTasks()
+  assert.equal(tasks.length, 150)
+  assert.equal(tasks[149]._id, 't150')
+})
+
+test('云模式：loadKnowledge 超过 100 条时分页取全（旧实现硬编码 limit(100) 会截断）', async () => {
+  const { api } = await loadCloudApi({ knowledge: bulk(150, 'k') })
+  const list = await api.loadKnowledge()
+  assert.equal(list.length, 150)
+  assert.equal(list[149]._id, 'k150')
+})
+
+test('云模式：initKnowledge 在知识超 100 条时仍能正确去重（不重复写入预置理论）', async () => {
+  const { api, db } = await loadCloudApi({
+    knowledge: bulk(150, 'k').concat([
+      { _id: 'preset1', title: '关键路径法', content: '已有', createdAt: 200, updatedAt: 200 },
+    ]),
+  })
+  await api.initKnowledge([{ title: '关键路径法', content: '预置内容' }])
+  // 已存在 → 不应新增；列表被截断时旧实现会误判为"不存在"而重复写入
+  assert.equal(db.__dump('knowledge').filter((k) => k.title === '关键路径法').length, 1)
+  assert.equal(db.__dump('knowledge').length, 151)
+})
+
+test('云模式：分页取全按 _id 去重（同 createdAt 边界不重复）', async () => {
+  const { api } = await loadCloudApi({
+    tasks: bulk(100, 'a', { createdAt: 1 }).concat(bulk(50, 'b', { createdAt: 1 })),
+  })
+  const tasks = await api.loadTasks()
+  assert.equal(tasks.length, 150)
+})
+
+/* ==================== 云模式：command.inc / command.push ==================== */
+
+test('云模式：updateTask 用 inc 累加 modificationCount，并 push 追加变更明细', async () => {
+  const { api, db } = await loadCloudApi({
+    tasks: [
+      { _id: 't1', title: 'A', estimatedHours: 1, modificationCount: 0, changeLog: [], createdAt: 1 },
+    ],
+  })
+  await api.updateTask('t1', { estimatedHours: 5 })
+  const doc = db.__dump('tasks')[0]
+  assert.equal(doc.modificationCount, 1)
+  assert.equal(doc.estimatedHours, 5)
+  assert.equal(doc.changeLog.length, 1)
+  assert.equal(doc.changeLog[0].field, 'estimatedHours')
+  assert.equal(doc.changeLog[0].from, 1)
+  assert.equal(doc.changeLog[0].to, 5)
+})
+
+test('云模式：changeLog 字段不存在时 push 自动创建数组（MongoDB $push 语义）', async () => {
+  const { api, db } = await loadCloudApi({
+    tasks: [{ _id: 't1', title: 'A', estimatedHours: 1, modificationCount: 0, createdAt: 1 }],
+  })
+  await api.updateTask('t1', { estimatedHours: 3 })
+  const doc = db.__dump('tasks')[0]
+  assert.equal(doc.changeLog.length, 1)
+  assert.equal(doc.changeLog[0].to, 3)
+})
+
+test('云模式：仅改 status 不 inc 也不 push（不污染波动数据）', async () => {
+  const { api, db } = await loadCloudApi({
+    tasks: [{ _id: 't1', title: 'A', status: 'pending', modificationCount: 0, changeLog: [], createdAt: 1 }],
+  })
+  await api.updateTask('t1', { status: 'completed' })
+  const doc = db.__dump('tasks')[0]
+  assert.equal(doc.status, 'completed')
+  assert.equal(doc.modificationCount, 0)
+  assert.deepEqual(doc.changeLog, [])
 })

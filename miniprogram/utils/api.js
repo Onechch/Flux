@@ -467,20 +467,38 @@ async function initKnowledge(presetTheory) {
   }
 }
 
-/** 读取全部知识（按创建时间升序；网络错误自动重试 1 次；各 status 均返回，由调用方筛选） */
+/**
+ * 读取全部知识（按创建时间升序；网络错误自动重试 1 次；各 status 均返回，由调用方筛选）。
+ * 分页取全（与 loadTasks 同策略）：知识库会持续累积（预置 6 条 + 手动添加 +
+ * 对话提取），单次查询上限 100 条，不分页时超出部分不可见 —— 更严重的是
+ * initKnowledge 靠"已存在标题"去重，列表被截断会导致已存在的预置理论
+ * 每次启动被重复写入，条目无上限增长。
+ */
 async function loadKnowledge() {
   if (mode === 'local') {
     return (wx.getStorageSync(LOCAL_KNOWLEDGE_KEY) || []).map(normalizeKnowledge)
   }
   const db = wx.cloud.database()
-  const res = await runLogged(KNOWLEDGE_COLLECTION, 'read', '', () =>
-    db
-      .collection(KNOWLEDGE_COLLECTION)
-      .orderBy('createdAt', 'asc')
-      .limit(100)
-      .get()
-  , { retry: true })
-  return (res.data || []).map(normalizeKnowledge)
+  const rows = []
+  const seen = {}
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const res = await runLogged(KNOWLEDGE_COLLECTION, 'read', '', () =>
+      db
+        .collection(KNOWLEDGE_COLLECTION)
+        .orderBy('createdAt', 'asc')
+        .skip(page * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .get()
+    , { retry: true })
+    const batch = res.data || []
+    batch.forEach((d) => {
+      if (seen[d._id]) return
+      seen[d._id] = true
+      rows.push(d)
+    })
+    if (batch.length < PAGE_SIZE) break // 已取完
+  }
+  return rows.map(normalizeKnowledge)
 }
 
 /**
