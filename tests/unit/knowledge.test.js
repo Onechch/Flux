@@ -161,6 +161,23 @@ test('typeLabel：类型映射为中文，未知类型兜底「其他」', () =>
   assert.equal(knowledge.typeLabel('unknown'), '其他')
 })
 
+test('PRESET_THEORY：预置理论完整且字段合法（与写库校验规则一致）', () => {
+  assert.ok(knowledge.PRESET_THEORY.length >= 6)
+  const titles = {}
+  knowledge.PRESET_THEORY.forEach((p) => {
+    assert.equal(p.type, 'theory')
+    assert.ok(p.title && p.title.length <= 50, p.title + ' 标题超长')
+    assert.ok(p.content && p.content.length <= 500, p.title + ' 内容超长')
+    assert.ok(Array.isArray(p.tags) && p.tags.length <= 5, p.title + ' 标签应不超过 5 个')
+    assert.ok(
+      p.tags.every((t) => t.length <= 10),
+      p.title + ' 单个标签应不超过 10 字（与 validation 的 itemMax 一致）'
+    )
+    assert.equal(titles[p.title], undefined, '预置理论标题不应重复：' + p.title)
+    titles[p.title] = true
+  })
+})
+
 test('TYPE_WEIGHTS：个人经验 > 模板 > 理论', () => {
   assert.ok(knowledge.TYPE_WEIGHTS.user_experience > knowledge.TYPE_WEIGHTS.task_template)
   assert.ok(knowledge.TYPE_WEIGHTS.task_template > knowledge.TYPE_WEIGHTS.theory)

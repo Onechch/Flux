@@ -51,7 +51,7 @@ const KNOWLEDGE_FIELDS = {
     values: ['theory', 'user_experience', 'best_practice', 'task_template'],
     label: '知识类型',
   },
-  tags: { type: 'stringArray', maxItems: 3, itemMax: 10, label: '标签' },
+  tags: { type: 'stringArray', maxItems: 5, itemMax: 10, label: '标签' },
   status: { type: 'enum', values: ['active', 'pending', 'ignored'], label: '状态' },
   source: { type: 'enum', values: ['preset', 'manual', 'extracted'], label: '来源' },
   usageCount: { type: 'integer', min: 0, max: 100000, label: '引用次数' },
@@ -78,6 +78,11 @@ function validateField(name, rule, value, errors) {
         return undefined
       }
       const trimmed = value.trim()
+      // 必填文本去空白后为空视为缺失：否则 '   ' 会绕过 required 检查落库为空标题
+      if (rule.required && !trimmed) {
+        errors.push({ field: name, message: label + '不能为空' })
+        return undefined
+      }
       return rule.max && trimmed.length > rule.max ? trimmed.slice(0, rule.max) : trimmed
     }
     case 'number': {
