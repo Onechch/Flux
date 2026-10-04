@@ -142,10 +142,18 @@ Page({
     try {
       const tasks = await api.loadTasks()
       const reconciled = await this.reconcileGoals(tasks)
+      // 用户手动展开/收起过的目标：跨刷新保留其选择。
+      // _expanded 是纯视图字段（不落库），每次 loadTasks 从 DB 重建任务对象时都会丢失，
+      // 只记录 userToggledGoals 却不用它回填，会让"手动展开的目标每次回首页又被收起"。
+      const prevExpanded = {}
+      ;(this.data.tasks || []).forEach((t) => {
+        prevExpanded[t._id] = !!t._expanded
+      })
       const withDisplay = reconciled.map((t) =>
         Object.assign({}, t, {
           displayHours: (t.actualHours || 0).toFixed(1),
           progress: this.calcProgress(t.actualHours || 0, t.estimatedHours),
+          _expanded: this.userToggledGoals[t._id] ? !!prevExpanded[t._id] : !!t._expanded,
         })
       )
       this.setData({ tasks: withDisplay })
