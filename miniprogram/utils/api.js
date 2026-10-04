@@ -371,9 +371,14 @@ async function initKnowledge(presetTheory) {
     })
     for (const p of presets) {
       if (titles[p.title]) continue
-      await addKnowledge(
-        Object.assign({}, p, { status: 'active', source: 'preset' })
-      )
+      // 逐条容错：单条预置数据不合法时只跳过它，不能让整批初始化中断
+      // （否则一条脏数据会让知识库长期停留在空状态且无任何提示）
+      try {
+        await addKnowledge(Object.assign({}, p, { status: 'active', source: 'preset' }))
+        titles[p.title] = true
+      } catch (e) {
+        console.warn('[api] 预置知识写入失败，跳过该条：' + (p && p.title), e)
+      }
     }
     return true
   } catch (e) {
