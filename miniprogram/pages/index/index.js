@@ -968,9 +968,9 @@ Page({
     const clog = this.data.tasks.find((t) => t._id === view.clogId)
     const goal = this.data.tasks.find((t) => t._id === goalId)
     if (!clog || !goal) {
-      // 提交期间卡点/目标已被删除或变更：直接收起面板
+      // 提交期间卡点/目标已被删除或变更：丢弃草稿并收起面板（下次打开按当前数据重建）
       this.refiningGoalId = ''
-      this.ctxPanel[goalId] = { open: false, tags: [], text: '' }
+      delete this.ctxPanel[goalId]
       this.rerender()
       return
     }
@@ -1054,8 +1054,9 @@ Page({
         ['tasks[' + idx + '].suggestionHistory']: trimmedHistory,
       })
 
-      // 收起面板 + 清加载态 + 重置草稿（下次打开按最新已提交内容预填）
-      this.ctxPanel[goalId] = { open: false, tags: [], text: '' }
+      // 收起面板 + 清加载态 + 丢弃草稿（下次打开「编辑补充」时，
+      // onToggleCtxPanel 走"首次打开"分支，从刚落库的 userContext 回填，可继续编辑）
+      delete this.ctxPanel[goalId]
       this.refiningGoalId = ''
       this.rerender() // buildGoalView 自动用建议历史最新版替换旧建议
       wx.showToast({ title: '已根据你的补充调整建议', icon: 'none' })
