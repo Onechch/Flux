@@ -717,8 +717,81 @@ test('syncTreeToDb：已完成的节点不被更新、不被删除', async () =>
   assert.ok(api.__byId('b'), 'B 虽不在草稿中，但已完成，必须保留')
 })
 
-/* ==================== 规则调优（降级） ==================== */
+test('syncTreeToDb：依赖回填不得跨分支串连同名子任务（回归）', async () => {
+  // 两个大目标下都有名为"写文档"的子任务。列表顺序刻意让"写文档"的首次出现
+  // 落在另一个目标下 —— 旧实现用全局"标题 → _id"映射，会把 g1 的依赖写到 g2 的任务上。
+  const api = createFakeApi([
+    { _id: 'g2', title: '目标2', estimatedHours: 2, status: 'in_progress' },
+    { _id: 's4', title: '写文档', parentGoalId: 'g2', level: 1, estimatedHours: 2, status: 'pending', dependencies: [] },
+    { _id: 'g1', title: '目标1', estimatedHours: 3, status: 'in_progress' },
+    { _id: 's1', title: '收集资料', parentGoalId: 'g1', level: 1, estimatedHours: 1, status: 'pending' },
+    { _id: 's2', title: '写文档', parentGoalId: 'g1', level: 1, estimatedHours: 2, status: 'pending' },
+  ])
+  const draft = {
+    title: '目标1',
+    estimatedHours: 3,
+    dependencies: [],
+    children: [
+      { title: '收集资料', estimatedHours: 1, dependencies: [], children: [] },
+      { title: '写文档', estimatedHours: 2, dependencies: ['收集资料'], children: [] },
+    ],
+  }
+  await tree.syncTreeToDb(api.__byId('g1'), draft, api)
 
+  assert.deepEqual(api.__byId('s2').dependencies, ['s1'], 'g1 的"写文档"应依赖 g1 的"收集资料"')
+  assert.deepEqual(api.__byId('s4').dependencies, [], 'g2 的同名任务不得被牵连')
+  // 系统行为：依赖回填不计入修改次数
+  const depCall = api.__calls.update.find((c) => c.patch.dependencies)
+  assert.equal(depCall.opts.countModification, false)
+})
+
+test('syncTreeToDb：父子不同层的同名任务各自独立回填依赖', async () => {
+  const api = createFakeApi([
+    { _id: 'g1', title: '目标', estimatedHours: 5, status: 'in_progress' },
+    { _id: 'a', title: 'A', parentGoalId: 'g1', level: 1, estimatedHours: 3, status: 'pending' },
+    { _id: 'x', title: '写文档', parentGoalId: 'a', level: 2, estimatedHours: 3, status: 'pending', dependencies: [] },
+    { _id: 'y', title: '写文档', parentGoalId: 'g1', level: 1, estimatedHours: 2, status: 'pending', dependencies: [] },
+  ])
+  const draft = {
+    title: '目标',
+    estimatedHours: 5,
+    dependencies: [],
+    children: [
+      {
+        title: 'A',
+        estimatedHours: 3,
+        dependencies: [],
+        children: [{ title: '写文档', estimatedHours: 3, dependencies: [], children: [] }],
+      },
+      { title: '写文档', estimatedHours: 2, dependencies: ['A'], children: [] },
+    ],
+  }
+  await tree.syncTreeToDb(api.__byId('g1'), draft, api)
+
+  assert.deepEqual(api.__byId('y').dependencies, ['a'], '第一层的"写文档"依赖同层的 A')
+  assert.deepEqual(api.__byId('x').dependencies, [], 'A 下的同名任务无同层依赖，不得拿到 A 的 _id')
+})
+
+test('syncTreeToDb：依赖未变化时不写库（幂等）', async () => {
+  const api = createFakeApi([
+    { _id: 'g1', title: '目标', estimatedHours: 2, status: 'in_progress' },
+    { _id: 'a', title: 'A', parentGoalId: 'g1', level: 1, estimatedHours: 1, status: 'pending' },
+    { _id: 'b', title: 'B', parentGoalId: 'g1', level: 1, estimatedHours: 1, status: 'pending', dependencies: ['a'] },
+  ])
+  const draft = {
+    title: '目标',
+    estimatedHours: 2,
+    dependencies: [],
+    children: [
+      { title: 'A', estimatedHours: 1, dependencies: [], children: [] },
+      { title: 'B', estimatedHours: 1, dependencies: ['A'], children: [] },
+    ],
+  }
+  await tree.syncTreeToDb(api.__byId('g1'), draft, api)
+  assert.equal(api.__calls.update.filter((c) => c.patch.dependencies).length, 0)
+})
+
+/* ==================== 规则调优（降级） ==================== */
 test('ruleRefineTree：删除命中的节点及其子树', () => {
   const t = draftTree()
   const r = tree.ruleRefineTree(t, '删除准备数据')

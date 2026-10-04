@@ -593,29 +593,38 @@ async function syncTreeToDb(goalTask, draftTree, api) {
 
   await syncLevel(goalTask._id, dbTree.children || [], draftTree.children || [], 1)
 
-  // 4. 依赖回填：同步后重建全局名 → _id 映射，草稿树每层回填（变化才写库）
+  // 4. 依赖回填：同步后按「父节点 + 标题」重建映射，草稿树逐层回填（变化才写库）。
+  //    必须带父节点维度：不同父节点下的同名子任务（如两个分支下都有"写文档"）如果
+  //    只按标题匹配，依赖会被写到别的分支上去 —— 同层依赖变成跨分支引用，
+  //    表现为"改了 A 分支，B 分支的任务莫名多出一条依赖"。
   const latest = await api.loadTasks()
-  const idByName = {}
+  const SEP = '\u0000' // 标题里不会出现的分隔符，避免 'a'+'b' 与 'ab'+'' 撞键
+  const keyOf = (parentId, title) => (parentId || '') + SEP + title
+  const idByKey = {}
   latest.forEach((t) => {
-    if (t.title && !idByName[t.title]) idByName[t.title] = t._id
+    if (!t.title) return
+    const k = keyOf(t.parentGoalId, t.title)
+    if (!idByKey[k]) idByKey[k] = t._id
   })
   const depById = {}
   latest.forEach((t) => {
     depById[t._id] = (t.dependencies || []).join('|')
   })
-  async function backfill(node) {
-    const id = idByName[node.title]
+  async function backfill(node, parentId) {
+    const id = idByKey[keyOf(parentId, node.title)]
     if (id) {
       const depIds = (node.dependencies || [])
-        .map((n) => idByName[n])
+        .map((n) => idByKey[keyOf(parentId, n)])
         .filter((x) => !!x && x !== id)
       if ((depIds.join('|') || '') !== (depById[id] || '')) {
         await api.updateTask(id, { dependencies: depIds }, { countModification: false })
       }
     }
-    for (const c of node.children || []) await backfill(c)
+    // 子节点归属：用映射到的 id；万一映射不到（如节点刚创建未被读回），
+    // 退回父节点 id —— 宁可该层依赖不回填，也不能写到别的分支上
+    for (const c of node.children || []) await backfill(c, id || parentId)
   }
-  await backfill(draftTree)
+  await backfill(draftTree, goalTask.parentGoalId || '')
 
   // 5. 根耗时 = 草稿树根合计（归一化后已是子合计）
   const goalHours = draftTree.estimatedHours || 0
