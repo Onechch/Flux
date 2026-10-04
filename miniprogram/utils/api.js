@@ -17,7 +17,7 @@
  * { _id, title, description, estimatedHours, actualHours, status,
  *   isBottleneck, dependencies, projectId, parentGoalId, level, aiHint,
  *   userContext, suggestionHistory,
- *   createdAt, updatedAt, modificationCount }
+ *   createdAt, updatedAt, modificationCount, changeLog }
  *
  * 多层级任务树（动态拆解 1-5 层，见 utils/tree.js）：
  * - 大目标（level 0，parentGoalId 为空）：首页展示与瓶颈识别的基本单位
@@ -45,6 +45,56 @@ const MEANINGFUL_FIELDS = [
   'dependencies',
   'projectId',
 ]
+
+// 变更明细环形缓冲：与 modificationCount 同口径（仅 MEANINGFUL_FIELDS、仅人工修改），
+// 额外记录"改了什么、什么时候改的"—— 波动预警需要时间维度（短期内反复改同一字段
+// = 需求处于动荡期），仅靠累加计数无法区分"半年改 3 次"与"三天改 3 次"。
+// 每条 { ts, field, from, to }；上限 20 条（超出丢弃最旧，数组不会无限膨胀）。
+const CHANGE_LOG_MAX = 20
+
+/**
+ * 提取本次 patch 的变更明细（仅 MEANINGFUL_FIELDS；值未变化不记录）。
+ * @param {Object|null} before 修改前的文档（读不到时为 null，此时 from 记为 null）
+ * @param {Object} clean 规范化后的 patch
+ * @param {number} now 时间戳
+ */
+function buildChangeEntries(before, clean, now) {
+  const entries = []
+  MEANINGFUL_FIELDS.forEach((field) => {
+    if (!Object.prototype.hasOwnProperty.call(clean, field)) return
+    const from = before ? before[field] : undefined
+    const to = clean[field]
+    // 同值重写不算变更（否则重复提交会虚增波动信号）
+    if (before && JSON.stringify(from) === JSON.stringify(to)) return
+    entries.push({
+      ts: now,
+      field: field,
+      from: from === undefined ? null : from,
+      to: to === undefined ? null : to,
+    })
+  })
+  return entries
+}
+
+/** 追加变更明细并截断到上限（保留最近 CHANGE_LOG_MAX 条） */
+function appendChangeLog(existing, entries) {
+  const list = Array.isArray(existing) ? existing.slice() : []
+  return list.concat(entries).slice(-CHANGE_LOG_MAX)
+}
+
+/** 归一化变更明细（容忍脏数据；超出上限时只保留最近的部分） */
+function normalizeChangeLog(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((e) => e && typeof e === 'object')
+    .map((e) => ({
+      ts: Number(e.ts) || 0,
+      field: typeof e.field === 'string' ? e.field : '',
+      from: e.from === undefined ? null : e.from,
+      to: e.to === undefined ? null : e.to,
+    }))
+    .slice(-CHANGE_LOG_MAX)
+}
 
 // 当前数据模式：'cloud' | 'local'
 let mode = 'cloud'
@@ -146,6 +196,8 @@ function normalize(doc) {
     createdAt: doc.createdAt || 0,
     updatedAt: doc.updatedAt || 0,
     modificationCount: doc.modificationCount || 0,
+    // 变更明细（波动预警的数据基础）：[{ ts, field, from, to }]，最近 CHANGE_LOG_MAX 条
+    changeLog: normalizeChangeLog(doc.changeLog),
   }
 }
 
@@ -221,6 +273,7 @@ async function addTask(params) {
     createdAt: now,
     updatedAt: now,
     modificationCount: 0,
+    changeLog: [],
   }
   if (mode === 'local') {
     doc._id = 'local_' + now + '_' + Math.floor(Math.random() * 10000)
@@ -239,12 +292,26 @@ async function addTask(params) {
 }
 
 /**
+ * 读取单个文档（失败返回 null）。仅用于取"修改前的旧值"以生成变更明细：
+ * 读不到时降级为"只记新值"（from 为 null），不阻塞主写入流程。
+ */
+async function readDocQuietly(db, docId) {
+  try {
+    const res = await db.collection(COLLECTION).doc(docId).get()
+    return res && res.data ? res.data : null
+  } catch (e) {
+    return null
+  }
+}
+
+/**
  * 更新任务（partial patch）。
  * - 写入前经 validateTaskPatch 校验已知字段（未知字段透传，兼容内部调用）
  * - userContext.text 落库前加密（enc1: 前缀密文），读取时由 normalize 透明解密
- * - 仅当修改了"有业务含义"的字段时才累加 modificationCount（牛鞭效应检测用）。
- *   opts.countModification === false 时表示系统自动流转（如瓶颈锁定/解锁），
- *   不计入修改次数。默认 true（用户主动编辑）。
+ * - 仅当修改了"有业务含义"的字段时才累加 modificationCount（牛鞭效应检测用），
+ *   同时追加一条变更明细到 changeLog（记录改了哪个字段、从什么改成什么）。
+ *   opts.countModification === false 时表示系统自动流转（如瓶颈锁定/解锁、
+ *   依赖回填、重新排期），不计入修改次数也不记明细。默认 true（用户主动编辑）。
  */
 async function updateTask(id, patch = {}, opts = {}) {
   const docId = validation.validateDocId(id, '任务')
@@ -267,17 +334,28 @@ async function updateTask(id, patch = {}, opts = {}) {
       const list = wx.getStorageSync(LOCAL_KEY) || []
       const i = list.findIndex((t) => t._id === docId)
       if (i === -1) return Promise.resolve()
-      list[i] = Object.assign({}, list[i], clean, {
+      const before = list[i]
+      const entries = bump ? buildChangeEntries(before, clean, now) : []
+      const next = Object.assign({}, before, clean, {
         updatedAt: now,
-        modificationCount: (list[i].modificationCount || 0) + (bump ? 1 : 0),
+        modificationCount: (before.modificationCount || 0) + (bump ? 1 : 0),
       })
+      if (entries.length) next.changeLog = appendChangeLog(before.changeLog, entries)
+      list[i] = next
       wx.setStorageSync(LOCAL_KEY, list)
       return Promise.resolve()
     })
   }
   const db = wx.cloud.database()
   const data = Object.assign({}, clean, { updatedAt: now })
-  if (bump) data.modificationCount = db.command.inc(1)
+  if (bump) {
+    data.modificationCount = db.command.inc(1)
+    // 变更明细：需要旧值才能记录 from。仅"人工修改"才多一次读，
+    // 系统自动流转（countModification:false）与批量导入不受影响。
+    const before = await readDocQuietly(db, docId)
+    const entries = buildChangeEntries(before, clean, now)
+    if (entries.length) data.changeLog = db.command.push(entries)
+  }
   await runLogged(COLLECTION, 'update', docId, () =>
     db.collection(COLLECTION).doc(docId).update({ data })
   )
@@ -498,6 +576,8 @@ module.exports = {
   removeTask,
   computeBottleneck,
   isGoal,
+  CHANGE_LOG_MAX,
+  MEANINGFUL_FIELDS,
   initKnowledge,
   loadKnowledge,
   addKnowledge,

@@ -145,6 +145,97 @@ test('updateTask：多次修改累计计数', async () => {
   assert.equal(after.modificationCount, 3)
 })
 
+/* ==================== 变更明细 changeLog（波动预警数据基础） ==================== */
+
+test('addTask：changeLog 初始化为空数组', async () => {
+  const { api } = await loadApi()
+  await api.addTask({ title: 'A' })
+  const after = (await api.loadTasks())[0]
+  assert.deepEqual(after.changeLog, [])
+})
+
+test('updateTask：修改有意义字段时追加变更明细（含 field/from/to/ts）', async () => {
+  const { api } = await loadApi()
+  const doc = await api.addTask({ title: 'A', estimatedHours: 1 })
+  const t0 = Date.now()
+  await api.updateTask(doc._id, { estimatedHours: 5 })
+  const after = (await api.loadTasks())[0]
+  assert.equal(after.changeLog.length, 1)
+  const e = after.changeLog[0]
+  assert.equal(e.field, 'estimatedHours')
+  assert.equal(e.from, 1)
+  assert.equal(e.to, 5)
+  assert.ok(e.ts >= t0 && e.ts <= Date.now())
+})
+
+test('updateTask：一次 patch 改多个有意义字段 → 每个字段各一条明细', async () => {
+  const { api } = await loadApi()
+  const doc = await api.addTask({ title: 'A', estimatedHours: 1 })
+  await api.updateTask(doc._id, { title: 'A2', estimatedHours: 3 })
+  const after = (await api.loadTasks())[0]
+  assert.equal(after.changeLog.length, 2)
+  const fields = after.changeLog.map((e) => e.field).sort()
+  assert.deepEqual(fields, ['estimatedHours', 'title'])
+  assert.equal(after.modificationCount, 1) // 同一次修改只计 1 次
+})
+
+test('updateTask：仅改 status 不产生变更明细（与 modificationCount 同口径）', async () => {
+  const { api } = await loadApi()
+  const doc = await api.addTask({ title: 'A' })
+  await api.updateTask(doc._id, { status: 'in_progress' })
+  await api.updateTask(doc._id, { status: 'completed' })
+  const after = (await api.loadTasks())[0]
+  assert.deepEqual(after.changeLog, [])
+  assert.equal(after.modificationCount, 0)
+})
+
+test('updateTask：countModification:false 时也不记录变更明细（系统流转不污染波动数据）', async () => {
+  const { api } = await loadApi()
+  const doc = await api.addTask({ title: 'A', estimatedHours: 1 })
+  await api.updateTask(doc._id, { estimatedHours: 8 }, { countModification: false })
+  const after = (await api.loadTasks())[0]
+  assert.equal(after.estimatedHours, 8)
+  assert.deepEqual(after.changeLog, [])
+})
+
+test('updateTask：同值重写不算变更（重复提交不虚增波动信号）', async () => {
+  const { api } = await loadApi()
+  const doc = await api.addTask({ title: 'A', estimatedHours: 4 })
+  await api.updateTask(doc._id, { estimatedHours: 4 })
+  const after = (await api.loadTasks())[0]
+  assert.equal(after.modificationCount, 1) // 计数按"改了这个字段"口径，仍 +1
+  assert.deepEqual(after.changeLog, []) // 但明细里没有真实变化
+})
+
+test('updateTask：变更明细超过上限时只保留最近 CHANGE_LOG_MAX 条', async () => {
+  const { api } = await loadApi()
+  const max = api.CHANGE_LOG_MAX
+  const doc = await api.addTask({ title: 'A', estimatedHours: 1 })
+  for (let i = 1; i <= max + 5; i++) {
+    await api.updateTask(doc._id, { estimatedHours: i })
+  }
+  const after = (await api.loadTasks())[0]
+  assert.equal(after.modificationCount, max + 5)
+  assert.equal(after.changeLog.length, max)
+  // 保留的是最近 max 条：最后一条 = 最后一次修改，最早一条已被丢弃
+  assert.equal(after.changeLog[after.changeLog.length - 1].to, max + 5)
+  assert.equal(after.changeLog[0].to, 6)
+})
+
+test('updateTask：changeLog 脏数据在读取时被归一化（不抛错）', async () => {
+  const { api, storage } = await loadApi()
+  const doc = await api.addTask({ title: 'A' })
+  const raw = storage.get('po_tasks')
+  raw[0].changeLog = [null, 'x', { ts: 'abc', field: 1 }, { ts: 123, field: 'title', from: 'a', to: 'b' }]
+  storage.set('po_tasks', raw)
+  const after = (await api.loadTasks())[0]
+  assert.equal(after.changeLog.length, 2)
+  assert.equal(after.changeLog[0].ts, 0)
+  assert.equal(after.changeLog[0].field, '')
+  assert.equal(after.changeLog[1].ts, 123)
+  assert.equal(after.changeLog[1].to, 'b')
+})
+
 test('updateTask：校验失败的字段不写库', async () => {
   const { api } = await loadApi()
   const doc = await api.addTask({ title: 'A' })
