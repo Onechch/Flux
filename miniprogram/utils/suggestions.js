@@ -29,6 +29,14 @@ const IGNORED_KEY = 'po_sug_ignored'
 const ADOPTED_KEY = 'po_sug_adopted'
 const FEEDBACK_KEY = 'po_sug_feedback'
 
+// 三个日志列表的保留上限（写入时环形裁剪，只留最近 N 条）：
+// - ignored 会影响建议是否展示，留宽一些（500 条约 12KB）
+// - adopted / feedback 目前只写不读（保留给后续建议质量分析），
+//   只需要最近一批，200 条足够
+// 不设上限的话，列表会随使用次数无限增长，最终吃掉 Storage 配额。
+const IGNORED_MAX = 500
+const LOG_MAX = 200
+
 // 建议类型白名单（AI 输出校验 / 采纳动作映射）
 const TYPES = [
   'breakdown', 'parallel', 'scope',           // 耗时太长：拆解/并行/砍需求
@@ -168,17 +176,26 @@ function generateCtxSuggestions(clog, userContext) {
 
 /* ---------------- 存储层（采纳 / 忽略 / 反馈日志） ---------------- */
 
+/**
+ * 读取日志列表。
+ * 必须校验是否为数组：Storage 里的值可能被历史版本/外部写入成非数组，
+ * 而 filterVisible 会对它调 .indexOf() —— 不校验会让 buildGoalView 抛错，
+ * 表现为整个首页白屏（只弹一次"任务加载失败"，下拉刷新也救不回来）。
+ */
 function getList(key) {
   try {
-    return wx.getStorageSync(key) || []
+    const v = wx.getStorageSync(key)
+    return Array.isArray(v) ? v : []
   } catch (e) {
     return []
   }
 }
 
-function setList(key, v) {
+/** 写入日志列表：环形裁剪到 max 条（只保留最近的一批） */
+function setList(key, v, max) {
   try {
-    wx.setStorageSync(key, v)
+    const list = Array.isArray(v) ? v : []
+    wx.setStorageSync(key, list.slice(-(max || LOG_MAX)))
   } catch (e) {
     console.warn('[suggestions] 存储写入失败', e)
   }
@@ -187,29 +204,23 @@ function setList(key, v) {
 /** 过滤已忽略的建议，最多展示 2 条（不刷屏） */
 function filterVisible(suggestions) {
   if (!Array.isArray(suggestions)) return []
-  let ignored = []
-  try {
-    ignored = wx.getStorageSync(IGNORED_KEY) || []
-  } catch (e) {
-    ignored = []
-  }
+  const ignored = getList(IGNORED_KEY)
   return suggestions.filter((s) => ignored.indexOf(s.key) === -1).slice(0, 2)
 }
 
 /** 忽略建议：该 key 不再显示（用户自己解决） */
 function ignoreKey(key) {
   const list = getList(IGNORED_KEY)
-  if (list.indexOf(key) === -1) {
-    list.push(key)
-    setList(IGNORED_KEY, list)
-  }
+  if (list.indexOf(key) > -1) return
+  list.push(key)
+  setList(IGNORED_KEY, list, IGNORED_MAX)
 }
 
 /** 记录采纳日志（供后续分析哪类建议被采纳得多） */
 function recordAdopted(rec) {
   const list = getList(ADOPTED_KEY)
   list.push(Object.assign({ ts: Date.now() }, rec))
-  setList(ADOPTED_KEY, list)
+  setList(ADOPTED_KEY, list, LOG_MAX)
 }
 
 /**
@@ -220,7 +231,7 @@ function recordAdopted(rec) {
 function recordFeedback(rec, helpful) {
   const list = getList(FEEDBACK_KEY)
   list.push(Object.assign({ ts: Date.now(), helpful: helpful === true }, rec))
-  setList(FEEDBACK_KEY, list)
+  setList(FEEDBACK_KEY, list, LOG_MAX)
 }
 
 module.exports = {

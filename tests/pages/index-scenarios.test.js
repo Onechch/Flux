@@ -502,6 +502,33 @@ test('A17 正常路径：提交补充后再次点「编辑补充」，面板应�
   assert.equal(goalOf(page, 'g1').ctxText, '设备排不上队')
 })
 
+test('A18 正常路径：忽略名单有上限，长期使用不会无限增长', async (t) => {
+  const { page, storage } = await loadIndexPage(sugTree(), t)
+
+  for (let i = 0; i < 620; i++) {
+    page.onDismissSuggestion({ currentTarget: { dataset: { key: 'k' + i } } })
+  }
+
+  const ignored = storage.get('po_sug_ignored')
+  assert.equal(ignored.length, 500, '超出上限后应环形裁剪')
+  assert.equal(ignored[499], 'k619', '保留的应是最近的一批')
+  assert.equal(ignored.indexOf('k0'), -1, '最老的记录被裁掉')
+})
+
+test('A19 正常路径：采纳/反馈日志只保留最近 200 条（只写不读，防止无限增长）', async (t) => {
+  const { suggestions: sugMod, storage } = await loadIndexPage(sugTree(), t)
+
+  for (let i = 0; i < 260; i++) sugMod.recordAdopted({ key: 'a' + i, type: 'focus' })
+  const adopted = storage.get('po_sug_adopted')
+  assert.equal(adopted.length, 200)
+  assert.equal(adopted[199].key, 'a259')
+
+  for (let i = 0; i < 260; i++) sugMod.recordFeedback({ key: 'f' + i }, true)
+  const feedback = storage.get('po_sug_feedback')
+  assert.equal(feedback.length, 200)
+  assert.equal(feedback[199].helpful, true)
+})
+
 /* ==================================================================== *
  * B. 边界条件
  * ==================================================================== */
@@ -820,13 +847,12 @@ test('C7 异常：锁定目标下的叶子不允许完成，仅提示先推进�
   assert.equal(page.data.bottleneckId, 'g1')
   assert.equal(viewOf(page, 'g2').status, 'locked')
 
-  page.onTreeRowTap(dsRow('g2', rowOf(page, 'g2', 'x')))
+  await page.onTreeRowTap(dsRow('g2', rowOf(page, 'g2', 'x')))
 
   assert.ok(hasToast(wx, '该目标已锁定'))
   assert.equal(viewOf(page, 'x').status, 'pending')
   assert.equal(storedOf(storage, 'x').status, 'pending')
 })
-
 test('C8 异常：删除当前瓶颈前先结算专注时长，再由剩余目标接任', async (t) => {
   const tasks = [
     raw('g1', { title: '瓶颈', estimatedHours: 10, actualHours: 1, status: 'in_progress', isBottleneck: true }),
@@ -1025,4 +1051,22 @@ test('C16 异常：完成目标过程中内部抛错，提交锁必须复位（�
   await page.submitTask()
   assert.equal(storedTasks(storage).length, 4, '提交锁解除后应能正常新增目标')
   assert.equal(hasToast(wx, '添加失败'), false)
+})
+
+test('C17 异常：建议日志存储被写坏（非数组）不得让首页白屏', async (t) => {
+  // po_sug_ignored 会被 buildGoalView → filterVisible 调 .indexOf()，
+  // 值不是数组时整条渲染链抛错 → 首页白屏（只弹一次"任务加载失败"）。
+  for (const bad of [{ a: 1 }, 7, 'not-an-array', null]) {
+    const { page, storage, wx } = await loadIndexPage(sugTree(), t, { storage: { po_sug_ignored: bad } })
+    const label = 'po_sug_ignored=' + JSON.stringify(bad)
+
+    assert.equal(wx.__calls.toast.length, 0, label + '：不应弹加载失败')
+    assert.equal(page.data.goals.length, 2, label + '：两个大目标都必须正常渲染')
+    assert.equal(page.data.bottleneckId, 'g1', label + '：瓶颈判定应照常')
+    assert.ok(goalOf(page, 'g1').suggestions.length > 0, label + '：建议应照常生成')
+
+    // 写路径也要能自愈：坏值被丢弃后重新写回合法数组
+    page.onDismissSuggestion({ currentTarget: { dataset: { key: 'any:key' } } })
+    assert.deepEqual(storage.get('po_sug_ignored'), ['any:key'], label + '：坏值应被覆盖为合法数组')
+  }
 })
