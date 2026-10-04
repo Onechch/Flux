@@ -750,6 +750,7 @@ Page({
       delete this.aiSugCache[id]
       delete this.treeExpanded[id]
       delete this.userToggledTree[id]
+      delete this.ctxPanel[id] // 补充情况草稿（该目标已不存在，留着就是泄漏）
       this.setData({ tasks })
       this.analyzeBottleneck(tasks) // 剩余目标自动锁定下一个瓶颈
       this.checkMultiTasking(tasks)

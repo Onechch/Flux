@@ -305,6 +305,7 @@ test('A8 删除目标：确认后递归删除整棵子树、清理页面缓存�
   page.userToggledGoals['g1'] = true
   page.treeExpanded['g1'] = { m1: true }
   page.aiSugCache['g1'] = { clogId: 'a', ts: Date.now(), suggestions: [{}] }
+  page.ctxPanel['g1'] = { open: true, tags: ['缺资源'], text: '草稿' }
 
   page.onDeleteGoal(ds('g1'))
   assert.equal(wx.__calls.modal.length, 1)
@@ -320,6 +321,7 @@ test('A8 删除目标：确认后递归删除整棵子树、清理页面缓存�
   assert.equal(page.userToggledGoals['g1'], undefined, '页面级缓存需一并清理')
   assert.equal(page.treeExpanded['g1'], undefined)
   assert.equal(page.aiSugCache['g1'], undefined)
+  assert.equal(page.ctxPanel['g1'], undefined, '补充情况草稿也要清理')
   assert.equal(page.data.bottleneckId, 'g2', '剩余目标自动接任瓶颈')
   assert.equal(page.data.submitting, false)
   assert.ok(hasToast(wx, '已删除'))
