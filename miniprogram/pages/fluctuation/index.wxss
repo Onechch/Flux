@@ -1,34 +1,462 @@
-/* pages/fluctuation/index.wxss —— 波动预警页占位样式 */
-.placeholder {
+/* pages/fluctuation/index.wxss —— 波动预警（深蓝底 + 风险色阶）
+   风险配色：源头反复变=红 / 计划被放大=橙 / 近期集中变更=黄 / 工时估不准=蓝 */
+
+.page {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 0 60rpx;
+  padding: 32rpx 32rpx 140rpx;
   box-sizing: border-box;
+  background: #0F1B33;
 }
-.ph-icon {
-  font-size: 96rpx;
-  margin-bottom: 24rpx;
+
+/* ---- 顶部 ---- */
+.hero {
+  padding: 16rpx 0 28rpx;
 }
-.ph-title {
+.hero-title {
   font-size: 40rpx;
   font-weight: 700;
   color: #EAF0FA;
 }
-.ph-desc {
-  margin-top: 16rpx;
+.hero-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+  line-height: 1.5;
+}
+
+/* ---- 空状态 / 加载 ---- */
+.empty {
+  padding: 120rpx 40rpx;
+  text-align: center;
   color: #8A93A6;
   font-size: 28rpx;
+  line-height: 1.7;
+}
+.empty-icon {
+  font-size: 96rpx;
+  margin-bottom: 24rpx;
+}
+.empty-sub {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #4A5570;
+}
+
+/* ---- 概览 ---- */
+.stat-row {
+  display: flex;
+  margin-bottom: 24rpx;
+}
+.stat {
+  flex: 1;
+  padding: 24rpx 12rpx;
+  margin-right: 16rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
   text-align: center;
+}
+.stat:last-child {
+  margin-right: 0;
+}
+.stat-num {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+  line-height: 1.1;
+}
+.stat-num.warn {
+  color: #F5872A;
+}
+.stat-label {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #8A93A6;
+}
+
+.hint {
+  padding: 20rpx 24rpx;
+  margin-bottom: 24rpx;
+  border-radius: 14rpx;
+  background: rgba(245, 135, 42, 0.1);
+  border: 1rpx solid rgba(245, 135, 42, 0.3);
+  color: #E8B98A;
+  font-size: 23rpx;
   line-height: 1.6;
 }
-.ph-tag {
-  margin-top: 40rpx;
-  padding: 8rpx 24rpx;
-  border-radius: 999rpx;
-  background: rgba(245, 135, 42, 0.12);
-  color: #F5872A;
+
+/* ---- 区块标题 ---- */
+.sec-title {
+  margin: 36rpx 0 18rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+}
+
+/* ---- 无风险 ---- */
+.ok-card {
+  padding: 32rpx 28rpx;
+  border-radius: 16rpx;
+  background: rgba(60, 180, 120, 0.08);
+  border: 1rpx solid rgba(60, 180, 120, 0.3);
+}
+.ok-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #6FD39B;
+}
+.ok-sub {
+  margin-top: 12rpx;
   font-size: 24rpx;
+  color: #8A93A6;
+  line-height: 1.6;
+}
+
+/* ---- 风险卡（左侧色条 + 淡色底） ---- */
+.risk-card {
+  position: relative;
+  padding: 26rpx 26rpx 22rpx 30rpx;
+  margin-bottom: 20rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+  overflow: hidden;
+}
+.risk-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 8rpx;
+}
+.risk-card.k-root::before {
+  background: #F5604A;
+}
+.risk-card.k-amp::before {
+  background: #F5872A;
+}
+.risk-card.k-burst::before {
+  background: #E8C547;
+}
+.risk-card.k-est::before {
+  background: #4A90D9;
+}
+
+.risk-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+}
+.risk-badge {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+.k-root .risk-badge {
+  background: rgba(245, 96, 74, 0.16);
+  color: #F5604A;
+}
+.k-amp .risk-badge {
+  background: rgba(245, 135, 42, 0.16);
+  color: #F5872A;
+}
+.k-burst .risk-badge {
+  background: rgba(232, 197, 71, 0.16);
+  color: #E8C547;
+}
+.k-est .risk-badge {
+  background: rgba(74, 144, 217, 0.16);
+  color: #4A90D9;
+}
+.risk-depth {
+  font-size: 22rpx;
+  color: #6B7A99;
+}
+
+.risk-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #EAF0FA;
+  line-height: 1.4;
+}
+.risk-goal {
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: #6B7A99;
+}
+.risk-msg {
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  color: #C3CCDD;
+  line-height: 1.65;
+}
+.risk-evidence {
+  margin-top: 14rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 12rpx;
+  background: #101A31;
+  color: #7F8CA6;
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+.risk-advice {
+  margin-top: 16rpx;
+  font-size: 25rpx;
+  color: #9FD3B4;
+  line-height: 1.6;
+}
+.risk-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20rpx;
+}
+
+/* ---- 通用卡片 ---- */
+.card {
+  padding: 26rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+}
+
+/* ---- 层级分布条 ---- */
+.bar-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 18rpx;
+}
+.bar-label {
+  width: 130rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+}
+.bar-track {
+  flex: 1;
+  height: 20rpx;
+  border-radius: 999rpx;
+  background: #101A31;
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  border-radius: 999rpx;
+  background: linear-gradient(90deg, #F5872A, #F5604A);
+}
+.bar-value {
+  width: 70rpx;
+  text-align: right;
+  font-size: 24rpx;
+  color: #EAF0FA;
+}
+.bar-foot {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #6B7A99;
+}
+
+/* ---- 目标卡 ---- */
+.goal-card {
+  padding: 26rpx;
+  margin-bottom: 20rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+}
+.goal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.goal-title {
+  flex: 1;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #EAF0FA;
+  margin-right: 16rpx;
+}
+.goal-hours {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #F5872A;
+}
+.goal-meta {
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  color: #8A93A6;
+}
+.goal-hot {
+  margin-top: 8rpx;
+  font-size: 23rpx;
+  color: #6B7A99;
+  line-height: 1.5;
+}
+.goal-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20rpx;
+}
+
+/* ---- 变更排行 ---- */
+.rank-row {
+  display: flex;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #1E2C4A;
+}
+.rank-row:last-child {
+  border-bottom: none;
+}
+.rank-idx {
+  width: 48rpx;
+  height: 48rpx;
+  margin-right: 18rpx;
+  border-radius: 50%;
+  background: #101A31;
+  color: #8A93A6;
+  font-size: 24rpx;
+  text-align: center;
+  line-height: 48rpx;
+}
+.rank-main {
+  flex: 1;
+}
+.rank-title {
+  font-size: 26rpx;
+  color: #EAF0FA;
+}
+.rank-sub {
+  margin-top: 4rpx;
+  font-size: 21rpx;
+  color: #6B7A99;
+}
+.rank-num {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #F5872A;
+}
+
+/* ---- 按钮 ---- */
+.btn {
+  min-width: 160rpx;
+  padding: 16rpx 28rpx;
+  margin-left: 16rpx;
+  border-radius: 999rpx;
+  font-size: 25rpx;
+  text-align: center;
+}
+.btn-primary {
+  background: #F5872A;
+  color: #16213E;
+  font-weight: 600;
+}
+.btn-ghost {
+  background: transparent;
+  border: 1rpx solid #2E4470;
+  color: #9BA8C0;
+}
+.btn:active {
+  opacity: 0.75;
+}
+
+/* ---- 判定口径 ---- */
+.threshold-toggle {
+  margin-top: 36rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #6B7A99;
+}
+.threshold-text {
+  margin-top: 16rpx;
+  padding: 22rpx 24rpx;
+  border-radius: 14rpx;
+  background: #101A31;
+  color: #7F8CA6;
+  font-size: 23rpx;
+  line-height: 1.7;
+}
+
+/* ---- 重新排期弹层 ---- */
+.mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(6, 12, 24, 0.72);
+  display: flex;
+  align-items: flex-end;
+  z-index: 99;
+}
+.sheet {
+  width: 100%;
+  max-height: 76vh;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-radius: 28rpx 28rpx 0 0;
+  background: #16213E;
+  border-top: 1rpx solid #24365A;
+  display: flex;
+  flex-direction: column;
+}
+.sheet-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+}
+.sheet-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+}
+.sheet-body {
+  flex: 1;
+  max-height: 46vh;
+  margin-top: 22rpx;
+}
+.sheet-label {
+  margin: 18rpx 0 12rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+}
+.sheet-text {
+  font-size: 23rpx;
+  color: #7F8CA6;
+  line-height: 1.7;
+}
+.sheet-note {
+  margin-top: 18rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: #101A31;
+  color: #6B7A99;
+  font-size: 21rpx;
+  line-height: 1.6;
+}
+.fix-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 20rpx;
+  margin-bottom: 12rpx;
+  border-radius: 12rpx;
+  background: #101A31;
+}
+.fix-title {
+  flex: 1;
+  margin-right: 16rpx;
+  font-size: 25rpx;
+  color: #C3CCDD;
+}
+.fix-val {
+  font-size: 25rpx;
+  font-weight: 600;
+  color: #F5872A;
+}
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 24rpx;
 }

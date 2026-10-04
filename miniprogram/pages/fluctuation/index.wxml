@@ -1,8 +1,143 @@
-<!-- pages/fluctuation/index.wxml —— 波动预警页（第 5 步开发：变更历史 + 牛鞭效应检测） -->
-<view class="placeholder">
-  <view class="ph-icon">📈</view>
-  <view class="ph-title">波动预警</view>
-  <view class="ph-desc">追踪任务变更历史</view>
-  <view class="ph-desc">检测牛鞭效应风险并一键重新排期</view>
-  <view class="ph-tag">下一步开发</view>
+<!-- pages/fluctuation/index.wxml —— 波动预警（需求波动 / 牛鞭效应检测） -->
+<view class="page">
+
+  <!-- 顶部说明 -->
+  <view class="hero">
+    <view class="hero-title">📈 波动预警</view>
+    <view class="hero-sub">需求反复变更会在计划里被逐层放大 —— 这里把放大点指出来</view>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="empty">分析中…</view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{!ready}}" class="empty">
+    <view class="empty-icon">📈</view>
+    <view>还没有任务数据</view>
+    <view class="empty-sub">先到首页创建大目标。之后每次修改都会被记录，这里就能看到需求波动</view>
+    <view class="btn btn-primary" bindtap="goIndex">去首页创建目标</view>
+  </view>
+
+  <block wx:else>
+
+    <!-- 概览 -->
+    <view class="stat-row">
+      <view class="stat">
+        <view class="stat-num">{{summary.totalChanges}}</view>
+        <view class="stat-label">累计变更</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num">{{summary.recentChanges}}</view>
+        <view class="stat-label">{{summary.windowDays}} 天内</view>
+      </view>
+      <view class="stat">
+        <view class="stat-num {{summary.riskCount > 0 ? 'warn' : ''}}">{{summary.riskCount}}</view>
+        <view class="stat-label">波动风险</view>
+      </view>
+    </view>
+
+    <view wx:if="{{summary.logTruncated}}" class="hint">
+      变更明细只保留最近若干条，更早的记录已被滚动覆盖 —— 上面的计数是下界（实际只会更多）。
+    </view>
+
+    <!-- 风险列表 -->
+    <view class="sec-title">波动风险</view>
+
+    <view wx:if="{{!risks.length}}" class="ok-card">
+      <view class="ok-title">✅ 暂未发现波动风险</view>
+      <view class="ok-sub">没有出现"上游稳定、下游反复重写"的放大迹象。</view>
+    </view>
+
+    <view wx:for="{{risks}}" wx:key="key" class="risk-card {{item.kindClass}}">
+      <view class="risk-head">
+        <text class="risk-badge">{{item.kindLabel}}</text>
+        <text class="risk-depth">{{item.depthText}}</text>
+      </view>
+      <view class="risk-title">{{item.title}}</view>
+      <view class="risk-goal">所属大目标：{{item.goalTitle}}</view>
+      <view class="risk-msg">{{item.message}}</view>
+      <view class="risk-evidence">{{item.evidence}}</view>
+      <view class="risk-advice">💡 {{item.advice}}</view>
+      <view class="risk-actions">
+        <view class="btn btn-ghost" data-goal="{{item.goalId}}" catchtap="onRefine">去调优</view>
+      </view>
+    </view>
+
+    <!-- 变更分布（按层级） -->
+    <view class="sec-title">变更集中在哪一层</view>
+    <view class="card">
+      <view wx:for="{{depthBars}}" wx:key="depth" class="bar-row">
+        <view class="bar-label">{{item.depthText}}</view>
+        <view class="bar-track">
+          <view class="bar-fill" style="width:{{item.percent}}%"></view>
+        </view>
+        <view class="bar-value">{{item.changes}}</view>
+      </view>
+      <view class="bar-foot">{{summary.goalCount}} 个大目标 · 共 {{summary.taskCount}} 个节点</view>
+    </view>
+
+    <!-- 按大目标 -->
+    <view class="sec-title">按大目标看</view>
+    <view wx:for="{{goals}}" wx:key="goalId" class="goal-card">
+      <view class="goal-head">
+        <view class="goal-title">{{item.title}}</view>
+        <view class="goal-hours">{{item.totalHours}}h</view>
+      </view>
+      <view class="goal-meta">
+        子树 {{item.subtreeNodes}} 个节点 · 累计变更 {{item.subtreeChanges}} 次 · 风险 {{item.riskCount}} 条
+      </view>
+      <view class="goal-hot">变更最多：{{item.hotText}}</view>
+      <view class="goal-actions">
+        <view class="btn btn-primary" data-id="{{item.goalId}}" catchtap="onPlanTap">重新排期</view>
+        <view class="btn btn-ghost" data-goal="{{item.goalId}}" catchtap="onRefine">去调优</view>
+      </view>
+    </view>
+
+    <!-- 变更排行 -->
+    <block wx:if="{{topChanges.length}}">
+      <view class="sec-title">变更最多的节点</view>
+      <view class="card">
+        <view wx:for="{{topChanges}}" wx:key="taskId" class="rank-row">
+          <view class="rank-idx">{{index + 1}}</view>
+          <view class="rank-main">
+            <view class="rank-title">{{item.title}}</view>
+            <view class="rank-sub">{{item.depthText}} · 近 {{summary.windowDays}} 天 {{item.recentChanges}} 次</view>
+          </view>
+          <view class="rank-num">{{item.ownChanges}}</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 判定口径 -->
+    <view class="threshold-toggle" bindtap="onToggleThresholds">
+      {{showThresholds ? '收起判定口径 ▲' : '判定口径是什么？▼'}}
+    </view>
+    <view wx:if="{{showThresholds}}" class="threshold-text">{{thresholdText}}</view>
+
+  </block>
+
+  <!-- 重新排期确认弹层 -->
+  <view wx:if="{{plan}}" class="mask" bindtap="onPlanCancel">
+    <view class="sheet" catchtap="onNoop">
+      <view class="sheet-title">重新排期 · {{plan.title}}</view>
+      <view class="sheet-sub">重排后总工作量 {{plan.totalHours}}h（各叶子任务相加）</view>
+      <scroll-view scroll-y class="sheet-body">
+        <view class="sheet-label">需要修正的节点（父节点耗时 ≠ 子任务合计）</view>
+        <view wx:for="{{plan.updates}}" wx:key="taskId" class="fix-row">
+          <view class="fix-title">{{item.title}}</view>
+          <view class="fix-val">{{item.from}}h → {{item.to}}h</view>
+        </view>
+        <view class="sheet-label">各层关键路径</view>
+        <view class="sheet-text">{{plan.layerText}}</view>
+        <view class="sheet-note">
+          总工作量 = 各叶子任务耗时相加；关键路径 = 同层依赖下、允许并行时的最短完成时间，两者不等是正常的。
+        </view>
+      </scroll-view>
+      <view class="sheet-actions">
+        <view class="btn btn-ghost" catchtap="onPlanCancel">取消</view>
+        <view class="btn btn-primary" catchtap="onPlanApply">{{applying ? '处理中…' : '确认重排'}}</view>
+      </view>
+    </view>
+  </view>
+
 </view>

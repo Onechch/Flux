@@ -1,3 +1,5 @@
 {
-  "navigationBarTitleText": "波动预警"
+  "navigationBarTitleText": "波动预警",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }
