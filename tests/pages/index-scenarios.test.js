@@ -959,3 +959,44 @@ test('C14 异常：任务加载期间再次触发加载（下拉刷新与 onShow
   assert.equal(storedOf(storage, 'g1').status, 'in_progress')
   assert.equal(storedOf(storage, 'g2').status, 'locked')
 })
+
+test('C15 异常：字段类型脏数据（一条坏记录）不得让整个首页白屏', async (t) => {
+  // 历史版本 / 云控制台手改 / 外部导入都可能写进类型不符的字段。
+  // 首页 buildGoalView 会对这些字段直接调 .map() / .toFixed()，
+  // 只要有一条坏记录没被收敛，整个卡片列表就会渲染失败 → 用户看到永久空状态。
+  const corruptions = {
+    'dependencies 存成字符串': { dependencies: 'g1' },
+    'dependencies 存成对象': { dependencies: { a: 1 } },
+    'dependencies 数组里混入非字符串': { dependencies: [1, null, 'g1'] },
+    'actualHours 存成字符串': { actualHours: '2' },
+    'actualHours 存成 NaN': { actualHours: Number.NaN },
+    'estimatedHours 存成字符串': { estimatedHours: '3' },
+    'estimatedHours 存成对象': { estimatedHours: {} },
+    'userContext.tags 存成字符串': { userContext: { tags: '缺资源', text: '', version: 1 } },
+    'userContext 存成字符串': { userContext: '缺资源' },
+    'title 存成数字': { title: 123 },
+    'status 存成数字': { status: 7 },
+    'level 存成字符串': { level: '1' },
+    'changeLog 存成对象': { changeLog: { a: 1 } },
+    'suggestionHistory 存成对象': { suggestionHistory: { a: 1 } },
+    'aiHint 存成对象': { aiHint: { a: 1 } },
+  }
+
+  for (const [name, patch] of Object.entries(corruptions)) {
+    const tasks = [
+      raw('g1', { title: '目标', estimatedHours: 4, createdAt: 1 }),
+      raw('a', Object.assign({ title: '坏记录', parentGoalId: 'g1', level: 1, createdAt: 2 }, patch)),
+      raw('g2', { title: '陪跑', estimatedHours: 1, createdAt: 3 }),
+    ]
+    const { page, wx } = await loadIndexPage(tasks, t)
+
+    assert.equal(wx.__calls.toast.length, 0, name + '：不应弹出加载失败')
+    assert.equal(page.data.goals.length, 2, name + '：两个大目标都必须正常渲染')
+    assert.equal(page.data.bottleneckId, 'g1', name + '：瓶颈判定应照常工作')
+    // 收敛结果：坏记录被修正为安全默认值，而不是把错误透传给渲染层
+    const bad = viewOf(page, 'a')
+    assert.equal(Array.isArray(bad.dependencies), true, name + '：dependencies 应收敛为数组')
+    assert.equal(typeof bad.actualHours, 'number', name + '：actualHours 应收敛为数值')
+    assert.equal(typeof bad.estimatedHours, 'number', name + '：estimatedHours 应收敛为数值')
+  }
+})

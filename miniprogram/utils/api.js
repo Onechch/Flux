@@ -158,35 +158,56 @@ async function initDatabase() {
 }
 
 /**
+ * 数值收敛：非有限数值一律回退为 0（'2' / null / undefined / NaN / {} 都算）。
+ * 不能只写 `doc.x || 0` —— 字符串 '2' 是 truthy，会原样透传给下游的 .toFixed()。
+ */
+function numericOf(v) {
+  const n = typeof v === 'number' ? v : parseFloat(v)
+  return Number.isFinite(n) ? n : 0
+}
+
+/** 字符串数组收敛：非数组（历史脏数据/外部写入）返回空数组；逐项过滤非字符串与空串 */
+function normalizeStringList(raw) {
+  if (!Array.isArray(raw)) return []
+  return raw.filter((x) => typeof x === 'string' && x)
+}
+
+/**
  * 归一化文档字段，兜底默认值（缺 parentGoalId/level 的旧数据按大目标处理）。
  * userContext.text 若为密文（enc1: 前缀）则透明解密；解密失败（换设备/密钥丢失）返回空串。
+ *
+ * 类型收敛是必需的：本函数是页面唯一的数据入口，下游（tree.js / suggestions.js /
+ * 首页 buildGoalView）直接对字段调 .map() / .toFixed()。历史版本、云控制台手改、
+ * 外部导入都可能写进类型不符的字段（如 dependencies 存成字符串、actualHours 存成
+ * 字符串），不在这里收敛的话，**一条脏文档就会让整个首页白屏**。
  */
 function normalize(doc) {
   const rawCtx = doc.userContext
   const userContext = rawCtx
     ? {
-        tags: rawCtx.tags || [],
+        tags: normalizeStringList(rawCtx.tags),
         text:
           typeof rawCtx.text === 'string' && rawCtx.text
             ? crypto.decryptText(rawCtx.text)
             : '',
-        submittedAt: rawCtx.submittedAt || 0,
-        version: rawCtx.version || 1,
+        submittedAt: numericOf(rawCtx.submittedAt),
+        version: numericOf(rawCtx.version) || 1,
       }
     : null
   return {
     _id: doc._id,
-    title: doc.title || '',
-    description: doc.description || '',
-    estimatedHours: doc.estimatedHours || 0,
-    actualHours: doc.actualHours || 0,
-    status: doc.status || 'pending',
+    title: doc.title === undefined || doc.title === null ? '' : String(doc.title),
+    description: doc.description === undefined || doc.description === null ? '' : String(doc.description),
+    estimatedHours: numericOf(doc.estimatedHours),
+    actualHours: numericOf(doc.actualHours),
+    status: typeof doc.status === 'string' && doc.status ? doc.status : 'pending',
     isBottleneck: !!doc.isBottleneck,
-    dependencies: doc.dependencies || [],
-    projectId: doc.projectId || '',
-    parentGoalId: doc.parentGoalId || '',
-    level: doc.level || 0,
-    aiHint: doc.aiHint || '',
+    // dependencies 必须是字符串数组：buildTreeFromTasks / generateSuggestions 直接 .map()
+    dependencies: normalizeStringList(doc.dependencies),
+    projectId: doc.projectId === undefined || doc.projectId === null ? '' : String(doc.projectId),
+    parentGoalId: doc.parentGoalId === undefined || doc.parentGoalId === null ? '' : String(doc.parentGoalId),
+    level: numericOf(doc.level),
+    aiHint: typeof doc.aiHint === 'string' ? doc.aiHint : '',
     // 补充情况（用户在瓶颈卡片就地补充的上下文，Agent 据此重新生成建议）：
     // { tags: ['试过没用','等别人'], text, submittedAt, version }
     userContext: userContext,

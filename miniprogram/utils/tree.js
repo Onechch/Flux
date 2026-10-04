@@ -172,6 +172,9 @@ function buildTreeFromTasks(goalTask, allTasks) {
     ;(byParent[task.parentGoalId || ''] || []).forEach((s) => {
       idToName[s._id] = s.title
     })
+    // dependencies 必须是数组：api.normalize 已在数据入口收敛，
+    // 这里再兜一次，保证任何调用方（含直接用内存对象调用的页面）都不会 .map 崩溃
+    const deps = Array.isArray(task.dependencies) ? task.dependencies : []
     return {
       _id: task._id,
       title: task.title,
@@ -179,9 +182,7 @@ function buildTreeFromTasks(goalTask, allTasks) {
       actualHours: task.actualHours || 0,
       status: task.status || 'pending',
       aiHint: task.aiHint || '',
-      dependencies: (task.dependencies || [])
-        .map((id) => idToName[id])
-        .filter((n) => !!n && n !== task.title),
+      dependencies: deps.map((id) => idToName[id]).filter((n) => !!n && n !== task.title),
       children: (byParent[task._id] || []).map(build),
     }
   }
