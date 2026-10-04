@@ -243,6 +243,22 @@ test('computeBottleneck：无 in_progress 时取「耗时 + 依赖数×2」最�
   assert.equal(api.computeBottleneck(goals)._id, 'g2', '8 + 3*2 = 14 > 10')
 })
 
+test('computeBottleneck：已完成的大目标被排除（即使传入全量任务列表）', async () => {
+  const { api } = await loadApi()
+  const goals = [
+    { _id: 'g1', title: '已完成', status: 'completed', estimatedHours: 100, dependencies: [] },
+    { _id: 'g2', title: '待办', status: 'pending', estimatedHours: 1, dependencies: [] },
+  ]
+  assert.equal(api.computeBottleneck(goals)._id, 'g2')
+  // 全部已完成时无瓶颈
+  assert.equal(
+    api.computeBottleneck([
+      { _id: 'g1', title: '已完成', status: 'completed', estimatedHours: 1, dependencies: [] },
+    ]),
+    null
+  )
+})
+
 test('isGoal：只有无 parentGoalId 的才是大目标', async () => {
   const { api } = await loadApi()
   assert.equal(api.isGoal({ _id: 'g', parentGoalId: '' }), true)

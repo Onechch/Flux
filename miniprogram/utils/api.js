@@ -307,13 +307,15 @@ async function removeTask(id) {
 }
 
 /**
- * 瓶颈识别（约束理论 TOC）—— 只认大目标：
+ * 瓶颈识别（约束理论 TOC）—— 只认未完成的大目标：
  * - 若有进行中的大目标，它就是唯一焦点（杜绝多任务切换）
  * - 否则取"预估耗时 + 依赖数量 × 2"得分最高的未完成大目标作为瓶颈
+ * 已完成的大目标在此处显式排除：调用方可能直接传入全量任务列表，
+ * 不能依赖"只传未完成任务"的调用约定（否则已完成的目标会被选为瓶颈）。
  */
 function computeBottleneck(unfinishedTasks) {
   if (!unfinishedTasks || !unfinishedTasks.length) return null
-  const goals = unfinishedTasks.filter(isGoal)
+  const goals = unfinishedTasks.filter((t) => isGoal(t) && t.status !== 'completed')
   if (!goals.length) return null
   const running = goals.find((t) => t.status === 'in_progress')
   if (running) return running
