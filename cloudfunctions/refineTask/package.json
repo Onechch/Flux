@@ -1,0 +1,9 @@
+{
+  "name": "refineTask",
+  "version": "1.0.0",
+  "description": "对话调优：基于初稿子任务列表和用户反馈，调用大模型生成新版子任务列表",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}

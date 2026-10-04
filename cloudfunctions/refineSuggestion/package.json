@@ -1,0 +1,9 @@
+{
+  "name": "refineSuggestion",
+  "version": "1.0.0",
+  "description": "补充情况重新生成建议：结合任务信息+用户补充+知识库，重新生成针对性卡点建议并落库建议历史",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}

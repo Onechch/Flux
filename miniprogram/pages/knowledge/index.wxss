@@ -1,0 +1,361 @@
+/* pages/knowledge/index.wxss —— 知识库页（深蓝 + 经验蓝 / 理论灰 / 待确认橙） */
+
+.page {
+  min-height: 100vh;
+  padding: 32rpx 32rpx 140rpx;
+  box-sizing: border-box;
+  background: #0F1B33;
+}
+
+/* ---- 顶部 ---- */
+.kb-hero {
+  padding: 16rpx 0 28rpx;
+}
+.kb-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+}
+.kb-sub {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+}
+
+/* ---- 搜索框 ---- */
+.search-bar {
+  margin-bottom: 24rpx;
+}
+.search-input {
+  height: 80rpx;
+  padding: 0 28rpx;
+  border-radius: 999rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+  color: #EAF0FA;
+  font-size: 26rpx;
+}
+.input-ph {
+  color: #4A5570;
+}
+
+/* ---- Tabs ---- */
+.tab-bar {
+  display: flex;
+  margin-bottom: 28rpx;
+  background: #16213E;
+  border-radius: 999rpx;
+  padding: 6rpx;
+}
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  font-size: 24rpx;
+  color: #8A93A6;
+  border-radius: 999rpx;
+  transition: all 0.2s ease;
+}
+.tab-item.active {
+  color: #FFFFFF;
+  font-weight: 600;
+  background: linear-gradient(135deg, #F5872A, #FF7A00);
+}
+
+/* ---- 空状态 ---- */
+.kb-empty {
+  padding: 100rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #5E6A85;
+}
+
+/* ---- 知识卡片 ---- */
+.kb-list {
+  margin-top: 4rpx;
+}
+.kb-card {
+  padding: 26rpx 24rpx;
+  margin-bottom: 20rpx;
+  border-radius: 18rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+  animation: fadeIn 0.3s ease;
+}
+.kb-card.pending {
+  border: 1rpx solid rgba(245, 135, 42, 0.4);
+  background: rgba(245, 135, 42, 0.06);
+}
+
+.kb-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.kb-badge-wrap {
+  display: flex;
+  align-items: center;
+}
+.kb-badge {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  margin-right: 12rpx;
+}
+.badge-pending {
+  color: #FFB066;
+  background: rgba(245, 135, 42, 0.16);
+  font-weight: 600;
+}
+.badge-theory {
+  color: #AEB9CC;
+  background: rgba(148, 163, 184, 0.14);
+}
+.badge-user_experience,
+.badge-best_practice {
+  color: #6FA8DC;
+  background: rgba(111, 168, 220, 0.14);
+}
+.badge-task_template {
+  color: #C9A86A;
+  background: rgba(201, 168, 106, 0.14);
+}
+.kb-source {
+  font-size: 20rpx;
+  color: #5E6A85;
+}
+.kb-usage {
+  font-size: 20rpx;
+  color: #5E6A85;
+}
+
+.kb-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #EAF0FA;
+  word-break: break-all;
+}
+.kb-card-content {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #8B97AC;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.kb-tags {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 14rpx;
+}
+.kb-tag {
+  font-size: 20rpx;
+  color: #6FA8DC;
+  background: rgba(111, 168, 220, 0.1);
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  margin: 0 10rpx 8rpx 0;
+}
+
+/* 待确认操作按钮 */
+.kb-actions {
+  display: flex;
+  margin-top: 18rpx;
+}
+.kb-btn {
+  flex: 1;
+  text-align: center;
+  padding: 14rpx 0;
+  margin-right: 14rpx;
+  font-size: 24rpx;
+  border-radius: 999rpx;
+}
+.kb-btn:last-child {
+  margin-right: 0;
+}
+.kb-btn:active {
+  opacity: 0.75;
+}
+.kb-btn-primary {
+  color: #16233F;
+  font-weight: 600;
+  background: linear-gradient(135deg, #FFB25C, #FF8A2A);
+}
+.kb-btn-ghost {
+  color: #AEB9CC;
+  background: rgba(148, 163, 184, 0.14);
+}
+
+/* 已采纳卡片底部：评分 + 操作 */
+.kb-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+}
+.kb-stars {
+  display: flex;
+}
+.kb-star {
+  font-size: 30rpx;
+  color: #3A4863;
+  margin-right: 8rpx;
+}
+.kb-star.lit {
+  color: #F5B72A;
+}
+.kb-ops {
+  display: flex;
+  align-items: center;
+}
+.kb-op {
+  font-size: 22rpx;
+  color: #8A93A6;
+  margin-left: 28rpx;
+  padding: 8rpx 0;
+}
+.kb-op:active {
+  color: #EAF0FA;
+}
+.kb-op-danger {
+  color: #B06063;
+}
+.kb-op-danger:active {
+  color: #E5484D;
+}
+
+/* ---- 手动添加 ---- */
+.kb-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96rpx;
+  margin-top: 24rpx;
+  border-radius: 18rpx;
+  border: 2rpx dashed #2A3C61;
+  color: #8A93A6;
+  font-size: 28rpx;
+}
+.kb-add-icon {
+  margin-right: 12rpx;
+  font-size: 32rpx;
+}
+
+/* ---- 数据源角标 ---- */
+.mode-badge {
+  position: fixed;
+  bottom: 32rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 20rpx;
+  color: #4A5570;
+  background: rgba(13, 23, 48, 0.92);
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+  white-space: nowrap;
+}
+
+/* ---- 添加/编辑弹层 ---- */
+.form-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 22, 0.7);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+.form-panel {
+  width: 100%;
+  padding: 36rpx 32rpx calc(36rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  border-radius: 28rpx 28rpx 0 0;
+  background: #16213E;
+  animation: rise 0.25s ease;
+}
+.form-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+  margin-bottom: 28rpx;
+}
+.form-input {
+  height: 84rpx;
+  padding: 0 24rpx;
+  border-radius: 14rpx;
+  background: #0D1730;
+  color: #EAF0FA;
+  font-size: 26rpx;
+  margin-bottom: 20rpx;
+}
+.form-textarea {
+  min-height: 140rpx;
+  width: 100%;
+  padding: 20rpx 24rpx;
+  border-radius: 14rpx;
+  background: #0D1730;
+  color: #EAF0FA;
+  font-size: 26rpx;
+  line-height: 1.6;
+  box-sizing: border-box;
+  margin-bottom: 20rpx;
+}
+.form-type-row {
+  display: flex;
+  margin-bottom: 20rpx;
+}
+.form-type {
+  flex: 1;
+  text-align: center;
+  padding: 12rpx 0;
+  margin-right: 12rpx;
+  font-size: 22rpx;
+  color: #8A93A6;
+  border-radius: 999rpx;
+  background: #0D1730;
+  border: 1rpx solid #24365A;
+}
+.form-type:last-child {
+  margin-right: 0;
+}
+.form-type.active {
+  color: #FF9A3D;
+  border-color: rgba(245, 135, 42, 0.5);
+  background: rgba(245, 135, 42, 0.1);
+  font-weight: 600;
+}
+.form-actions {
+  display: flex;
+  margin-top: 8rpx;
+}
+.form-btn {
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  margin: 0;
+  padding: 0;
+}
+.form-btn-primary {
+  background: linear-gradient(135deg, #F5872A, #FF7A00);
+  color: #FFFFFF;
+}
+.form-btn-ghost {
+  background: transparent;
+  border: 2rpx solid #2A3C61;
+  color: #8A93A6;
+  margin-right: 20rpx;
+}
+
+/* ---- 关键帧 ---- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise {
+  from { transform: translateY(60rpx); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}

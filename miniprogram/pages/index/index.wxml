@@ -1,10 +1,15 @@
 <!-- pages/index/index.wxml —— 瓶颈仪表盘（首页） -->
 <view class="page">
 
-  <!-- 顶部：标题 + 在办大目标计数（子任务不计入） -->
+  <!-- 顶部：标题 + 在办大目标计数（子任务不计入）+ 知识库入口 -->
   <view class="top-bar">
     <text class="top-title">瓶颈仪表盘</text>
-    <text class="top-count">进行中: {{activeTaskCount}} 项</text>
+    <view class="top-right">
+      <text class="top-count">进行中: {{activeTaskCount}} 项</text>
+      <view class="kb-entry" bindtap="goKnowledge">
+        <text class="kb-entry-icon">📚</text>
+      </view>
+    </view>
   </view>
 
   <!-- 多任务警告横幅（利特尔法则：在办大目标 > 3 触发） -->
@@ -37,6 +42,7 @@
               <text wx:elif="{{item.status === 'locked'}}" class="tag tag-locked">🔒 已锁定</text>
               <text wx:else class="tag tag-pending">待办</text>
               <text wx:if="{{item.subTotal > 0}}" class="tag tag-sub">子任务 {{item.subDone}}/{{item.subTotal}}</text>
+              <text wx:if="{{item.suggestionCount > 0}}" class="tag tag-sug">💡 {{item.suggestionCount}}条建议</text>
             </view>
 
             <!-- 目标名称（瓶颈大号加粗） -->
@@ -53,23 +59,121 @@
               <view class="progress-fill" style="width: {{item.progress}}%"></view>
             </view>
           </view>
+
+          <!-- AI调优入口（catchtap 阻断冒泡）：跳转拆解页对话调优 -->
+          <view class="goal-refine" data-id="{{item._id}}" catchtap="onRefineGoal">
+            <text class="goal-refine-icon">✨</text>
+          </view>
+
+          <!-- 删除按钮（catchtap 阻断冒泡，不触发展开/收起） -->
+          <view class="goal-delete" data-id="{{item._id}}" catchtap="onDeleteGoal">
+            <text class="goal-delete-icon">✕</text>
+          </view>
         </view>
 
-        <!-- 子任务列表（展开时显示；父目标非瓶颈时子任务同样锁定；橙色高亮为目标内卡点） -->
-        <view wx:if="{{item.expanded && item.subTotal > 0}}" class="subtask-list">
+        <!-- 当前卡点摘要（卡点链最深处 = 最具体可行动点） -->
+        <view wx:if="{{item.expanded && item.clogTitle}}" class="goal-clog-line">
+          <text class="goal-clog-label">⚠️ 当前卡点</text>
+          <text class="goal-clog-text">{{item.clogTitle}}</text>
+        </view>
+
+        <!-- 任务树（展开时显示；默认展开到卡点层级；橙=各层瓶颈，红=当前卡点；
+             叶子行点击切换完成，有下级的行点击展开/折叠） -->
+        <view wx:if="{{item.expanded && item.treeRows.length > 0}}" class="subtask-list">
           <view
-            wx:for="{{item.subtasks}}"
-            wx:for-item="sub"
-            wx:for-index="subIdx"
-            wx:key="_id"
-            class="subtask-row {{sub.status === 'completed' ? 'done' : ''}} {{sub.isBottleneck ? 'sub-bottleneck' : ''}}"
-            data-id="{{sub._id}}"
-            bindtap="completeSubtask">
-            <text class="sub-check">{{sub.status === 'completed' ? '✓' : '○'}}</text>
-            <text class="sub-title">{{subIdx + 1}}. {{sub.title}}</text>
-            <text wx:if="{{sub.isBottleneck}}" class="sub-tag-clog">🔴 卡点</text>
-            <text wx:if="{{sub.locked}}" class="sub-lock">🔒</text>
-            <text wx:else class="sub-hours">{{sub.estimatedHours}}h</text>
+            wx:for="{{item.treeRows}}"
+            wx:for-item="row"
+            wx:key="key"
+            class="tree-row {{row.status === 'completed' ? 'done' : ''}} {{row.isClog ? 'row-clog' : (row.isBottleneck ? 'row-bottleneck' : (row.isCritical ? 'row-critical' : ''))}}"
+            style="padding-left: {{8 + (row.depth - 1) * 40}}rpx"
+            data-key="{{row.key}}"
+            data-has="{{row.hasChildren}}"
+            data-goal="{{item._id}}"
+            data-id="{{row._id}}"
+            bindtap="onTreeRowTap">
+            <text wx:if="{{row.hasChildren}}" class="tree-arrow {{row.expanded ? 'expanded' : ''}}">▸</text>
+            <text wx:else class="tree-check">{{row.status === 'completed' ? '✓' : '○'}}</text>
+            <text class="tree-title">{{row.title}}</text>
+            <text wx:if="{{row.isClog}}" class="tree-badge badge-clog">🔴 卡点</text>
+            <text wx:elif="{{row.isBottleneck}}" class="tree-badge badge-bottleneck">🟠 瓶颈</text>
+            <text wx:if="{{row.locked}}" class="tree-lock">🔒</text>
+            <text wx:elif="{{row.status !== 'completed'}}" class="tree-hours">{{row.estimatedHours}}h</text>
+          </view>
+        </view>
+
+        <!-- 智能建议：卡点怎么解（补充情况版 > AI > 规则；可就地补充情况让 Agent 重新生成） -->
+        <view wx:if="{{item.expanded && item.clogTitle}}" class="suggestion-box">
+          <view class="sug-box-header">
+            <text class="sug-box-title">💡 怎么解卡</text>
+            <text class="sug-box-source">{{item.suggestionSource === 'refined' ? '已根据你的补充调整' : (item.suggestionSource === 'ai' ? 'AI 生成' : '规则匹配')}}</text>
+          </view>
+
+          <!-- 重新生成加载态 -->
+          <view wx:if="{{item.refining}}" class="ctx-loading">
+            <view class="ctx-loading-spinner"></view>
+            <text class="ctx-loading-text">正在根据你的情况调整建议…</text>
+          </view>
+
+          <block wx:else>
+            <view
+              wx:for="{{item.suggestions}}"
+              wx:for-item="sug"
+              wx:key="key"
+              class="sug-card">
+              <view class="sug-action">{{sug.action}}</view>
+              <view class="sug-line"><text class="sug-label">为什么</text>{{sug.reason}}</view>
+              <view class="sug-line"><text class="sug-label">会怎样</text>{{sug.effect}}</view>
+              <view class="sug-btns">
+                <view class="sug-btn sug-btn-adopt" data-goal="{{item._id}}" data-key="{{sug.key}}" catchtap="onAdoptSuggestion">采纳建议</view>
+                <view class="sug-btn sug-btn-dismiss" data-goal="{{item._id}}" data-key="{{sug.key}}" catchtap="onDismissSuggestion">忽略</view>
+                <view class="sug-btn sug-btn-feedback" data-goal="{{item._id}}" data-key="{{sug.key}}" catchtap="onFeedbackSuggestion">没帮助</view>
+              </view>
+            </view>
+
+            <!-- 有用反馈（补充情况版建议） -->
+            <view wx:if="{{item.suggestionSource === 'refined'}}" class="ctx-helpful">
+              <text class="ctx-helpful-q">这条建议有用吗？</text>
+              <view class="ctx-helpful-btn" data-goal="{{item._id}}" catchtap="onHelpfulYes">👍</view>
+              <view class="ctx-helpful-btn" data-goal="{{item._id}}" catchtap="onHelpfulNo">👎</view>
+            </view>
+          </block>
+
+          <!-- 已补充的标签（可编辑再次调整建议）/ 补充情况入口 -->
+          <view wx:if="{{item.hasUserContext && !item.refining}}" class="ctx-applied" data-goal="{{item._id}}" catchtap="onToggleCtxPanel">
+            <text class="ctx-applied-tags">🏷 已补充：{{item.userContextTagsText}}</text>
+            <text class="ctx-applied-edit">{{item.ctxOpen ? '收起' : '编辑补充'}}</text>
+          </view>
+          <view wx:elif="{{!item.refining}}" class="ctx-entry" data-goal="{{item._id}}" catchtap="onToggleCtxPanel">
+            💬 补充情况，让建议更准
+          </view>
+
+          <!-- 补充情况面板：快速标签（多选最多3个）+ 详细描述 -->
+          <view wx:if="{{item.ctxOpen && !item.refining}}" class="ctx-panel">
+            <view class="ctx-panel-title">补充具体情况（帮助Agent给出更准建议）</view>
+            <view class="ctx-quick-title">快速选择（可多选，最多3个）：</view>
+            <view class="ctx-quick-list">
+              <view
+                wx:for="{{item.ctxTagItems}}"
+                wx:for-item="tag"
+                wx:key="label"
+                class="ctx-quick-tag {{tag.active ? 'active' : ''}}"
+                data-goal="{{item._id}}"
+                data-tag="{{tag.label}}"
+                catchtap="onCtxTagTap">{{tag.label}}</view>
+            </view>
+            <textarea
+              class="ctx-textarea"
+              placeholder="补充具体情况，比如试过什么、卡在哪里、有什么限制..."
+              placeholder-class="ctx-textarea-ph"
+              value="{{item.ctxText}}"
+              maxlength="200"
+              auto-height
+              data-goal="{{item._id}}"
+              bindinput="onCtxTextInput" />
+            <view class="ctx-panel-btns">
+              <button class="ctx-cancel-btn" data-goal="{{item._id}}" catchtap="onCtxCancel">取消</button>
+              <button class="ctx-submit-btn" data-goal="{{item._id}}" catchtap="onCtxSubmit">提交</button>
+            </view>
           </view>
         </view>
 

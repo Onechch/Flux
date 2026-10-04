@@ -1,4 +1,4 @@
-/* pages/breakdown/index.wxss —— 流程拆解页（深蓝 + 关键路径红） */
+/* pages/breakdown/index.wxss —— 流程拆解页（深蓝 + 关键路径红 + 瓶颈橙） */
 
 .page {
   min-height: 100vh;
@@ -65,6 +65,40 @@
   margin-top: 40rpx;
   animation: rise 0.35s ease;
 }
+
+/* 初稿头部：完成状态 + 降级标记 */
+.draft-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+.draft-title {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #6BCB77;
+}
+.fallback-badge {
+  font-size: 20rpx;
+  color: #FFB066;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(245, 135, 42, 0.14);
+}
+.editing-badge {
+  font-size: 20rpx;
+  color: #6FA8DC;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(111, 168, 220, 0.14);
+}
+.draft-goal {
+  margin-bottom: 24rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+  word-break: break-all;
+}
+
 .result-header {
   display: flex;
   align-items: center;
@@ -75,13 +109,6 @@
   font-size: 30rpx;
   font-weight: 600;
   color: #EAF0FA;
-}
-.fallback-badge {
-  font-size: 20rpx;
-  color: #FFB066;
-  padding: 6rpx 14rpx;
-  border-radius: 999rpx;
-  background: rgba(245, 135, 42, 0.14);
 }
 
 /* ---- 子任务列表：关键路径红色高亮 ---- */
@@ -134,6 +161,102 @@
   margin-right: 28rpx;
 }
 
+/* ---- 任务树（多层级缩进列表：展开/折叠 + 卡点红/瓶颈橙/关键路径红边） ---- */
+.tree-list {
+  margin-top: 4rpx;
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 20rpx;
+  margin-bottom: 10rpx;
+  border-radius: 12rpx;
+  background: #16213E;
+  border-left: 6rpx solid #2A3C61;
+}
+.tree-row:active {
+  opacity: 0.8;
+}
+/* 关键路径：红边 */
+.tree-row.row-critical {
+  border-left-color: #FF4444;
+  background: rgba(255, 68, 68, 0.08);
+}
+/* 各层瓶颈：橙边 + 微橙背景 */
+.tree-row.row-bottleneck {
+  border-left-color: #FF7A00;
+  background: rgba(255, 122, 0, 0.10);
+}
+.tree-row.row-bottleneck .tree-title {
+  color: #FFB066;
+  font-weight: 600;
+}
+/* 最深层卡点：红边 + 明显红背景 */
+.tree-row.row-clog {
+  border-left-color: #E5484D;
+  background: rgba(229, 72, 77, 0.16);
+}
+.tree-row.row-clog .tree-title {
+  color: #FF6B6B;
+  font-weight: 700;
+}
+/* 已完成（编辑模式载入的树）：弱化 */
+.tree-row.row-done {
+  opacity: 0.5;
+}
+.tree-arrow {
+  width: 36rpx;
+  flex-shrink: 0;
+  font-size: 22rpx;
+  color: #6FA8DC;
+  transition: transform 0.2s ease;
+}
+.tree-arrow.expanded {
+  transform: rotate(90deg);
+}
+.tree-dot {
+  width: 36rpx;
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 24rpx;
+  color: #3E4B66;
+}
+.tree-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: #D5DCEA;
+  line-height: 1.4;
+  word-break: break-all;
+}
+.tree-badge {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  font-size: 18rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+}
+.badge-clog {
+  color: #FF6B6B;
+  background: rgba(229, 72, 77, 0.18);
+}
+.badge-bottleneck {
+  color: #FFB066;
+  background: rgba(255, 122, 0, 0.16);
+}
+.tree-hours {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  font-size: 22rpx;
+  color: #5E6A85;
+}
+.tree-hint {
+  margin-top: 4rpx;
+  font-size: 20rpx;
+  color: #4A5570;
+  line-height: 1.6;
+}
+
 /* ---- 总工期 ---- */
 .summary-box {
   margin-top: 28rpx;
@@ -166,21 +289,314 @@
   color: #4A5570;
 }
 
-/* ---- 一键导入 ---- */
-.btn-import {
-  margin-top: 32rpx;
-  height: 88rpx;
-  line-height: 88rpx;
+/* ---- 瓶颈分析卡片（橙色） ---- */
+.bottleneck-card {
+  margin-top: 28rpx;
+  padding: 24rpx;
   border-radius: 16rpx;
-  font-size: 30rpx;
+  background: rgba(255, 126, 0, 0.10);
+  border: 1rpx solid rgba(255, 126, 0, 0.35);
+}
+.bottleneck-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #FF9A3D;
+}
+.bottleneck-line {
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  color: #E8C9A8;
+  line-height: 1.7;
+  word-break: break-all;
+}
+.bottleneck-task {
+  font-weight: 700;
+  color: #FF9A3D;
+}
+.bottleneck-suggestion {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #C89B6E;
+  line-height: 1.6;
+}
+
+/* ---- 信息缺口卡片（灰色） ---- */
+.gap-card {
+  margin-top: 20rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: rgba(148, 163, 184, 0.09);
+  border: 1rpx solid rgba(148, 163, 184, 0.25);
+}
+.gap-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #AEB9CC;
+}
+.gap-item {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8B97AC;
+  line-height: 1.6;
+}
+
+/* ---- 反馈输入（对话调优） ---- */
+.feedback-box {
+  display: flex;
+  align-items: flex-end;
+  margin-top: 28rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+}
+.feedback-input {
+  flex: 1;
+  min-height: 72rpx;
+  max-height: 240rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 12rpx;
+  background: #0D1730;
+  color: #EAF0FA;
+  font-size: 26rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.btn-send {
+  flex-shrink: 0;
+  width: 140rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  margin: 0 0 0 16rpx;
+  padding: 0;
+  border-radius: 12rpx;
+  font-size: 26rpx;
   font-weight: 600;
   text-align: center;
   background: linear-gradient(135deg, #F5872A, #FF7A00);
   color: #FFFFFF;
 }
 
+/* ---- 调整记录（仅当前会话） ---- */
+.adjust-log {
+  margin-top: 24rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 16rpx;
+  background: rgba(111, 168, 220, 0.08);
+  border: 1rpx solid rgba(111, 168, 220, 0.25);
+}
+.adjust-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #6FA8DC;
+}
+.adjust-item {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8B9BC0;
+  line-height: 1.6;
+  word-break: break-all;
+}
+
+/* ---- 采纳 / 重新拆解 ---- */
+.action-row {
+  display: flex;
+  margin-top: 32rpx;
+}
+.btn-import {
+  flex: 1.5;
+  height: 88rpx;
+  line-height: 88rpx;
+  margin: 0 16rpx 0 0;
+  padding: 0;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-weight: 600;
+  text-align: center;
+  background: linear-gradient(135deg, #F5872A, #FF7A00);
+  color: #FFFFFF;
+}
+.btn-redo {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 16rpx;
+  font-size: 26rpx;
+  text-align: center;
+  background: transparent;
+  border: 2rpx solid #2A3C61;
+  color: #8A93A6;
+}
+
 /* ---- 关键帧 ---- */
 @keyframes rise {
   from { opacity: 0; transform: translateY(24rpx); }
   to { opacity: 1; transform: none; }
+}
+
+/* ---- 批量目标：多行输入（覆盖 .goal-input 的单行高度） ---- */
+.goal-textarea {
+  width: 100%;
+  min-height: 140rpx;
+  height: auto;
+  padding: 20rpx 24rpx;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+
+/* ---- 批量目标：确认阶段（识别结果可编辑） ---- */
+.confirm-hint {
+  margin-bottom: 20rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+  line-height: 1.6;
+}
+.confirm-row {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 16rpx;
+  padding: 20rpx;
+  border-radius: 14rpx;
+  background: #0D1730;
+}
+.confirm-index {
+  width: 44rpx;
+  flex-shrink: 0;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: #FF9A3D;
+  line-height: 64rpx;
+}
+.confirm-inputs {
+  flex: 1;
+  min-width: 0;
+}
+.confirm-input {
+  height: 64rpx;
+  line-height: 64rpx;
+  padding: 0 20rpx;
+  border-radius: 10rpx;
+  background: #16213E;
+  color: #D5DCEA;
+  font-size: 26rpx;
+  margin-bottom: 12rpx;
+}
+.confirm-input:last-child {
+  margin-bottom: 0;
+}
+.confirm-title {
+  font-weight: 600;
+  color: #EAF0FA;
+}
+.confirm-delete {
+  width: 48rpx;
+  height: 64rpx;
+  flex-shrink: 0;
+  margin-left: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.confirm-delete:active {
+  opacity: 0.7;
+}
+.confirm-delete-icon {
+  font-size: 26rpx;
+  color: #5A667C;
+}
+.confirm-add {
+  padding: 22rpx;
+  margin-bottom: 8rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #6FA8DC;
+  border: 1rpx dashed #2A3C61;
+  border-radius: 14rpx;
+}
+.confirm-add:active {
+  opacity: 0.7;
+}
+
+/* ---- 批量目标：结果卡片（每个目标独立展示） ---- */
+.batch-goal-card {
+  margin-top: 24rpx;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: #16213E;
+  border: 1rpx solid #24365A;
+  animation: rise 0.35s ease;
+}
+.batch-goal-card:first-of-type {
+  margin-top: 0;
+}
+.batch-goal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.batch-goal-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #EAF0FA;
+  word-break: break-all;
+}
+.adopted-badge {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  font-size: 20rpx;
+  color: #6BCB77;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(107, 203, 119, 0.14);
+}
+.batch-desc {
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  color: #8A93A6;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.batch-pending {
+  padding: 48rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #8A93A6;
+}
+.batch-goal-card .result-header {
+  margin-top: 20rpx;
+  margin-bottom: 16rpx;
+  justify-content: flex-start;
+}
+.batch-goal-card .result-header .result-title {
+  margin-right: 16rpx;
+}
+.batch-summary {
+  margin-top: 20rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 14rpx;
+  background: #0D1730;
+}
+.batch-summary-total {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #FF5A5A;
+}
+.batch-summary-cp {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #B98284;
+  line-height: 1.6;
+  word-break: break-all;
+}
+.batch-feedback {
+  margin-top: 20rpx;
+}
+.batch-adopt-btn {
+  flex: none;
+  width: 100%;
+  margin: 20rpx 0 0;
 }

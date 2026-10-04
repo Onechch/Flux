@@ -1,55 +1,113 @@
-<!-- pages/breakdown/index.wxml —— 流程拆解页 -->
+<!-- pages/breakdown/index.wxml —— 流程拆解页（批量识别 + 初稿 + 对话调优） -->
 <view class="page">
 
   <!-- 头部 -->
   <view class="hero">
     <view class="hero-title">🧠 流程拆解器</view>
-    <view class="hero-sub">输入目标，AI 自动拆解任务链并计算关键路径</view>
+    <view class="hero-sub">一次说出所有想做的事，AI 自动识别目标并拆解</view>
   </view>
 
-  <!-- 目标输入 -->
+  <!-- 目标输入（多行：可一段话说出多个目标） -->
   <view class="input-card">
-    <input
-      class="goal-input"
-      placeholder="输入你的目标，如：完成季度汇报"
+    <textarea
+      class="goal-input goal-textarea"
+      placeholder="说出你接下来要做的事情，一次说完整…比如：我要完成季度汇报的PPT，还要整理团队绩效，另外准备下周评审会…"
       placeholder-class="input-ph"
       value="{{goal}}"
-      maxlength="50"
-      disabled="{{isLoading}}"
-      bindinput="onGoalInput"
-      confirm-type="go"
-      bindconfirm="handleBreakdown" />
+      maxlength="200"
+      auto-height
+      disabled="{{parsing || isLoading || batchLoading}}"
+      bindinput="onGoalInput" />
     <button
       class="btn-breakdown"
-      loading="{{isLoading}}"
-      disabled="{{isLoading}}"
-      bindtap="handleBreakdown">{{isLoading ? 'AI 拆解中…' : '🔨 智能拆解'}}</button>
-    <view wx:if="{{isLoading}}" class="loading-hint">AI 正在拆解目标，约需 5~15 秒，请稍候</view>
+      loading="{{parsing || isLoading}}"
+      disabled="{{parsing || isLoading || batchLoading}}"
+      bindtap="handleSmartParse">{{parsing ? '识别目标中…' : (isLoading ? 'AI 拆解中…' : '🤖 智能识别与拆解')}}</button>
+    <view wx:if="{{parsing}}" class="loading-hint">AI 正在识别目标，约需 1~3 秒</view>
+    <view wx:elif="{{isLoading}}" class="loading-hint">AI 正在拆解目标，约需 5~15 秒，请稍候</view>
+    <view wx:if="{{batchProgress}}" class="loading-hint">{{batchProgress}}</view>
   </view>
 
-  <!-- 拆解结果 -->
-  <view wx:if="{{hasResult}}" class="result">
+  <!-- 批量目标：确认阶段（识别结果可编辑/删除/添加，确认后再拆解，避免浪费 AI 调用） -->
+  <view wx:if="{{batchStage === 'confirm'}}" class="result">
+    <view class="draft-header">
+      <text class="draft-title">🎯 已识别 {{parsedGoals.length}} 个目标</text>
+    </view>
+    <view class="confirm-hint">确认无误后开始拆解；识别有误可直接修改、删除或添加</view>
 
-    <view class="result-header">
-      <text class="result-title">📋 子任务列表（共 {{tasks.length}} 项）</text>
+    <view wx:for="{{parsedGoals}}" wx:key="key" class="confirm-row">
+      <text class="confirm-index">{{index + 1}}</text>
+      <view class="confirm-inputs">
+        <input
+          class="confirm-input confirm-title"
+          placeholder="目标名称"
+          placeholder-class="input-ph"
+          value="{{item.title}}"
+          maxlength="30"
+          data-index="{{index}}"
+          bindinput="onParsedTitleInput" />
+        <input
+          class="confirm-input"
+          placeholder="补充说明（可选），如：需与市场部对齐数据"
+          placeholder-class="input-ph"
+          value="{{item.description}}"
+          maxlength="60"
+          data-index="{{index}}"
+          bindinput="onParsedDescInput" />
+      </view>
+      <view class="confirm-delete" data-index="{{index}}" catchtap="removeParsedGoal">
+        <text class="confirm-delete-icon">✕</text>
+      </view>
+    </view>
+
+    <view class="confirm-add" bindtap="addParsedGoal">＋ 添加目标</view>
+
+    <view class="action-row">
+      <button
+        class="btn-import"
+        loading="{{batchLoading}}"
+        disabled="{{batchLoading}}"
+        bindtap="confirmBatchBreakdown">✅ 确认并拆解</button>
+      <button
+        class="btn-redo"
+        disabled="{{batchLoading}}"
+        bindtap="reparseGoals">🔄 重新输入</button>
+    </view>
+  </view>
+
+  <!-- 拆解结果（初稿 + 对话调优，单目标模式） -->
+  <view wx:if="{{hasResult && !batchStage}}" class="result">
+
+    <!-- 初稿头部 -->
+    <view class="draft-header">
+      <text class="draft-title">✅ {{draftCount > 1 ? '已根据反馈调整（第' + draftCount + '版）' : '拆解初稿已完成'}}</text>
+      <text wx:if="{{editing}}" class="editing-badge">已载入目标 · 对话调优</text>
       <text wx:if="{{aiFallback}}" class="fallback-badge">示例数据 · AI 降级</text>
     </view>
+    <view class="draft-goal">目标：{{goal}}</view>
 
-    <!-- 子任务列表：关键路径红色高亮 -->
-    <view
-      wx:for="{{tasks}}"
-      wx:key="name"
-      class="task-item {{item.isCritical ? 'critical' : 'normal'}}">
-      <view class="task-name-row">
-        <text wx:if="{{item.isCritical}}" class="critical-flag">🔴</text>
-        <text class="task-index">{{index + 1}}.</text>
-        <text class="task-name">{{item.name}}</text>
-      </view>
-      <view class="task-meta">
-        <text>⏱ {{item.estimatedHours}}h</text>
-        <text>🔗 依赖：{{item.depText}}</text>
+    <!-- 任务树：多层级缩进列表（点击展开/折叠；橙=各层瓶颈，红=最深卡点，红边=关键路径） -->
+    <view class="result-header">
+      <text class="result-title">🌲 任务树（共 {{treeRows.length}} 项）</text>
+    </view>
+    <view class="tree-list">
+      <view
+        wx:for="{{treeRows}}"
+        wx:key="key"
+        class="tree-row {{item.isClog ? 'row-clog' : (item.isBottleneck ? 'row-bottleneck' : (item.isCritical ? 'row-critical' : 'row-normal'))}} {{item.status === 'completed' ? 'row-done' : ''}}"
+        style="padding-left: {{20 + (item.depth - 1) * 44}}rpx"
+        data-key="{{item.key}}"
+        data-has="{{item.hasChildren}}"
+        bindtap="toggleTreeNode">
+        <text wx:if="{{item.hasChildren}}" class="tree-arrow {{item.expanded ? 'expanded' : ''}}">▸</text>
+        <text wx:else class="tree-dot">·</text>
+        <text class="tree-title">{{item.status === 'completed' ? '✓ ' : ''}}{{item.title}}</text>
+        <text wx:if="{{item.isClog}}" class="tree-badge badge-clog">🔴 卡点</text>
+        <text wx:elif="{{item.isBottleneck}}" class="tree-badge badge-bottleneck">🟠 瓶颈</text>
+        <text wx:if="{{item.status !== 'completed'}}" class="tree-hours">{{item.estimatedHours}}h</text>
       </view>
     </view>
+    <view class="tree-hint">点击 ▸ 展开下级；橙 = 各层瓶颈，红 = 当前具体卡点</view>
 
     <!-- 总工期 -->
     <view class="summary-box">
@@ -59,11 +117,178 @@
       <view class="summary-hint">标红任务为关键路径，决定项目最短工期</view>
     </view>
 
-    <!-- 一键导入首页 -->
-    <button
-      class="btn-import"
-      loading="{{importing}}"
-      disabled="{{importing}}"
-      bindtap="handleImport">📥 一键导入首页</button>
+    <!-- 卡点分析（橙色卡片：每层瓶颈逐层向下，最深层 = 当前具体卡点） -->
+    <view wx:if="{{clogInfo}}" class="bottleneck-card">
+      <view class="bottleneck-title">🔍 当前卡点</view>
+      <view class="bottleneck-line">
+        <text class="bottleneck-task">「{{clogInfo.title}}」</text>{{clogInfo.hint}}
+      </view>
+      <view class="bottleneck-suggestion">🔗 卡点链：{{clogInfo.chainText}}</view>
+    </view>
+
+    <!-- 信息缺口（灰色卡片） -->
+    <view wx:if="{{infoGaps.length}}" class="gap-card">
+      <view class="gap-title">💡 为了让拆解更精准，建议补充：</view>
+      <view wx:for="{{infoGaps}}" wx:key="*this" class="gap-item">· {{item}}</view>
+    </view>
+
+    <!-- 反馈输入（对话调优） -->
+    <view class="feedback-box">
+      <textarea
+        class="feedback-input"
+        placeholder="输入调整意见，如：删除收集数据，增加内部预演"
+        placeholder-class="input-ph"
+        value="{{feedback}}"
+        maxlength="200"
+        auto-height
+        disabled="{{refining}}"
+        confirm-type="send"
+        bindconfirm="sendFeedback"
+        bindinput="onFeedbackInput" />
+      <button
+        class="btn-send"
+        loading="{{refining}}"
+        disabled="{{refining}}"
+        bindtap="sendFeedback">{{refining ? '调整中…' : '发送'}}</button>
+    </view>
+
+    <!-- 调整记录（仅当前会话） -->
+    <view wx:if="{{adjustments.length}}" class="adjust-log">
+      <view class="adjust-title">📝 调整记录</view>
+      <view wx:for="{{adjustments}}" wx:key="key" class="adjust-item">· {{item.text}}</view>
+    </view>
+
+    <!-- 采纳 / 重新拆解 -->
+    <view class="action-row">
+      <button
+        class="btn-import"
+        loading="{{importing}}"
+        disabled="{{importing}}"
+        bindtap="handleImport">{{editing ? '✅ 同步更新到首页' : '✅ 采纳并导入首页'}}</button>
+      <button
+        class="btn-redo"
+        disabled="{{isLoading}}"
+        bindtap="handleRedo">🔄 重新拆解</button>
+    </view>
+  </view>
+
+  <!-- 批量目标：拆解结果（每个目标独立卡片，可单独调优/采纳） -->
+  <view wx:if="{{batchStage === 'results'}}" class="result">
+
+    <!-- 初稿头部 -->
+    <view class="draft-header">
+      <text class="draft-title">✅ 已拆解 {{batchDoneCount}}/{{batchResults.length}} 个目标</text>
+    </view>
+
+    <view
+      wx:for="{{batchResults}}"
+      wx:for-item="bg"
+      wx:key="key"
+      class="batch-goal-card">
+
+      <!-- 目标头部：标题 + 已采纳标记 -->
+      <view class="batch-goal-header">
+        <text class="batch-goal-title">📁 目标{{index + 1}}：{{bg.title}}</text>
+        <text wx:if="{{bg.adopted}}" class="adopted-badge">✅ 已采纳</text>
+      </view>
+      <view wx:if="{{bg.description}}" class="batch-desc">备注：{{bg.description}}</view>
+
+      <!-- 拆解中占位：仅当前在拆的目标显示"正在拆解"，其余排队目标显示"排队等待" -->
+      <view wx:if="{{bg.pending}}" class="batch-pending">{{index === batchActiveIndex ? '⏳ 正在拆解…' : '⏳ 排队等待中…'}}</view>
+
+      <block wx:else>
+        <!-- 任务树：多层级缩进列表（每卡片独立展开/折叠） -->
+        <view class="result-header">
+          <text class="result-title">🌲 任务树（共 {{bg.treeRows.length}} 项）</text>
+          <text wx:if="{{bg.aiFallback}}" class="fallback-badge">示例数据 · AI 降级</text>
+        </view>
+        <view class="tree-list">
+          <view
+            wx:for="{{bg.treeRows}}"
+            wx:for-item="row"
+            wx:key="key"
+            class="tree-row {{row.isClog ? 'row-clog' : (row.isBottleneck ? 'row-bottleneck' : (row.isCritical ? 'row-critical' : 'row-normal'))}}"
+            style="padding-left: {{20 + (row.depth - 1) * 44}}rpx"
+            data-key="{{row.key}}"
+            data-has="{{row.hasChildren}}"
+            data-index="{{index}}"
+            bindtap="toggleTreeNode">
+            <text wx:if="{{row.hasChildren}}" class="tree-arrow {{row.expanded ? 'expanded' : ''}}">▸</text>
+            <text wx:else class="tree-dot">·</text>
+            <text class="tree-title">{{row.title}}</text>
+            <text wx:if="{{row.isClog}}" class="tree-badge badge-clog">🔴 卡点</text>
+            <text wx:elif="{{row.isBottleneck}}" class="tree-badge badge-bottleneck">🟠 瓶颈</text>
+            <text class="tree-hours">{{row.estimatedHours}}h</text>
+          </view>
+        </view>
+
+        <!-- 总工期 + 关键路径 -->
+        <view wx:if="{{bg.treeRows.length}}" class="batch-summary">
+          <view class="batch-summary-total">📊 总工期 {{bg.totalDuration}} 小时</view>
+          <view class="batch-summary-cp">🔴 {{bg.criticalPathText}}</view>
+        </view>
+
+        <!-- 卡点分析（橙色卡片） -->
+        <view wx:if="{{bg.clogInfo}}" class="bottleneck-card">
+          <view class="bottleneck-title">🔍 当前卡点</view>
+          <view class="bottleneck-line">
+            <text class="bottleneck-task">「{{bg.clogInfo.title}}」</text>{{bg.clogInfo.hint}}
+          </view>
+          <view class="bottleneck-suggestion">🔗 卡点链：{{bg.clogInfo.chainText}}</view>
+        </view>
+
+        <!-- 反馈输入（对话调优，仅作用于该目标） -->
+        <view class="feedback-box batch-feedback">
+          <textarea
+            class="feedback-input"
+            placeholder="调整该目标，如：删除XX，把YY改成2小时"
+            placeholder-class="input-ph"
+            value="{{bg.feedback}}"
+            maxlength="200"
+            auto-height
+            disabled="{{bg.refining || bg.adopted || batchLoading}}"
+            bindinput="onBatchFeedbackInput"
+            data-index="{{index}}" />
+          <button
+            class="btn-send"
+            loading="{{bg.refining}}"
+            disabled="{{bg.refining || bg.adopted || batchLoading}}"
+            bindtap="sendBatchFeedback"
+            data-index="{{index}}">{{bg.refining ? '调整中…' : '发送'}}</button>
+        </view>
+
+        <!-- 调整记录（仅当前会话） -->
+        <view wx:if="{{bg.adjustments.length}}" class="adjust-log">
+          <view class="adjust-title">📝 调整记录</view>
+          <view
+            wx:for="{{bg.adjustments}}"
+            wx:for-item="adj"
+            wx:key="key"
+            class="adjust-item">· {{adj.text}}</view>
+        </view>
+
+        <!-- 采纳该目标（已采纳后不可重复） -->
+        <button
+          wx:if="{{!bg.adopted}}"
+          class="btn-import batch-adopt-btn"
+          loading="{{bg.adopting}}"
+          disabled="{{bg.adopting || adoptingAll || batchLoading}}"
+          bindtap="adoptBatchGoal"
+          data-index="{{index}}">✅ 采纳该目标</button>
+      </block>
+    </view>
+
+    <!-- 底部操作：全部采纳 / 重新识别 -->
+    <view class="action-row">
+      <button
+        class="btn-import"
+        loading="{{adoptingAll}}"
+        disabled="{{adoptingAll || batchLoading}}"
+        bindtap="adoptAllBatchGoals">✅ 全部采纳</button>
+      <button
+        class="btn-redo"
+        disabled="{{batchLoading || adoptingAll}}"
+        bindtap="reparseGoals">🔄 重新识别</button>
+    </view>
   </view>
 </view>

@@ -1,0 +1,146 @@
+<!-- pages/knowledge/index.wxml —— 知识库（Agent 长期记忆） -->
+<view class="page">
+
+  <!-- 顶部说明 -->
+  <view class="kb-hero">
+    <view class="kb-title">📚 知识库</view>
+    <view class="kb-sub">理论方法 + 你的个人经验，让 AI 建议更懂你</view>
+  </view>
+
+  <!-- 搜索框 -->
+  <view class="search-bar">
+    <input
+      class="search-input"
+      placeholder="搜索知识标题、内容或标签"
+      placeholder-class="input-ph"
+      value="{{keyword}}"
+      bindinput="onSearchInput"
+      confirm-type="search" />
+  </view>
+
+  <!-- Tabs：全部 / 待确认 / 理论 / 经验 / 模板 -->
+  <view class="tab-bar">
+    <view class="tab-item {{tab === 'all' ? 'active' : ''}}" data-tab="all" bindtap="onTabTap">全部</view>
+    <view class="tab-item {{tab === 'pending' ? 'active' : ''}}" data-tab="pending" bindtap="onTabTap">
+      待确认{{pendingCount > 0 ? '(' + pendingCount + ')' : ''}}
+    </view>
+    <view class="tab-item {{tab === 'theory' ? 'active' : ''}}" data-tab="theory" bindtap="onTabTap">理论</view>
+    <view class="tab-item {{tab === 'experience' ? 'active' : ''}}" data-tab="experience" bindtap="onTabTap">经验</view>
+    <view class="tab-item {{tab === 'template' ? 'active' : ''}}" data-tab="template" bindtap="onTabTap">模板</view>
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="kb-empty">加载中…</view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{!list.length}}" class="kb-empty">
+    <view wx:if="{{tab === 'pending'}}">没有待确认的知识</view>
+    <view wx:else>暂无知识，点击下方按钮手动添加</view>
+  </view>
+
+  <!-- 知识列表 -->
+  <view class="kb-list">
+    <block wx:for="{{list}}" wx:key="_id">
+
+      <!-- 待确认条目（对话提取） -->
+      <view wx:if="{{item.status === 'pending'}}" class="kb-card pending">
+        <view class="kb-card-head">
+          <text class="kb-badge badge-pending">待确认</text>
+          <text class="kb-source">从对话中提取</text>
+        </view>
+        <view class="kb-card-title">{{item.title}}</view>
+        <view class="kb-card-content">{{item.content}}</view>
+        <view wx:if="{{item.tags.length}}" class="kb-tags">
+          <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="kb-tag">建议标签：{{tag}}</text>
+        </view>
+        <view class="kb-actions">
+          <view class="kb-btn kb-btn-primary" data-id="{{item._id}}" catchtap="onConfirm">✅ 采纳</view>
+          <view class="kb-btn kb-btn-ghost" data-id="{{item._id}}" catchtap="onIgnore">❌ 忽略</view>
+          <view class="kb-btn kb-btn-ghost" data-id="{{item._id}}" catchtap="openEditForm">✏️ 编辑</view>
+        </view>
+      </view>
+
+      <!-- 已采纳条目 -->
+      <view wx:else class="kb-card">
+        <view class="kb-card-head">
+          <view class="kb-badge-wrap">
+            <text class="kb-badge badge-{{item.type}}">{{item.typeLabel}}</text>
+            <text wx:if="{{item.source === 'extracted'}}" class="kb-source">对话沉淀</text>
+            <text wx:elif="{{item.source === 'manual'}}" class="kb-source">手动添加</text>
+          </view>
+          <view class="kb-usage">引用 {{item.usageCount}} 次</view>
+        </view>
+        <view class="kb-card-title">{{item.title}}</view>
+        <view class="kb-card-content">{{item.content}}</view>
+        <view wx:if="{{item.tags.length}}" class="kb-tags">
+          <text wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this" class="kb-tag">{{tag}}</text>
+        </view>
+        <view class="kb-foot">
+          <!-- 评分：1-5 星，点当前分同星取消 -->
+          <view class="kb-stars">
+            <text
+              wx:for="{{[1,2,3,4,5]}}"
+              wx:for-item="star"
+              wx:key="*this"
+              class="kb-star {{item.rating >= star ? 'lit' : ''}}"
+              data-id="{{item._id}}"
+              data-star="{{star}}"
+              catchtap="onRate">{{item.rating >= star ? '★' : '☆'}}</text>
+          </view>
+          <view class="kb-ops">
+            <text class="kb-op" data-id="{{item._id}}" catchtap="openEditForm">编辑</text>
+            <text class="kb-op kb-op-danger" data-id="{{item._id}}" catchtap="onDelete">删除</text>
+          </view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 手动添加 -->
+  <view class="kb-add" bindtap="openAddForm">
+    <text class="kb-add-icon">＋</text>
+    <text>手动添加知识</text>
+  </view>
+
+  <!-- 数据源标识 -->
+  <view class="mode-badge">{{mode === 'cloud' ? '☁ 云端同步中' : '📴 本地模式（云环境未就绪）'}}</view>
+
+  <!-- 添加 / 编辑表单（弹层） -->
+  <view wx:if="{{showForm}}" class="form-mask" bindtap="closeForm">
+    <view class="form-panel" catchtap="">
+      <view class="form-title">{{formMode === 'add' ? '添加知识' : '编辑知识'}}</view>
+      <input
+        class="form-input"
+        placeholder="标题，如：上午效率高"
+        placeholder-class="input-ph"
+        value="{{form.title}}"
+        bindinput="onFormTitle"
+        maxlength="20" />
+      <textarea
+        class="form-textarea"
+        placeholder="内容，如：我一般上午效率比较高，重要的事放上午做"
+        placeholder-class="input-ph"
+        value="{{form.content}}"
+        bindinput="onFormContent"
+        maxlength="200"
+        auto-height />
+      <view class="form-type-row">
+        <view class="form-type {{form.type === 'user_experience' ? 'active' : ''}}" data-value="user_experience" bindtap="onFormType">习惯/偏好</view>
+        <view class="form-type {{form.type === 'best_practice' ? 'active' : ''}}" data-value="best_practice" bindtap="onFormType">经验教训</view>
+        <view class="form-type {{form.type === 'task_template' ? 'active' : ''}}" data-value="task_template" bindtap="onFormType">任务特征</view>
+        <view wx:if="{{formMode === 'edit' && form.type === 'theory'}}" class="form-type active">理论</view>
+      </view>
+      <input
+        class="form-input"
+        placeholder="标签（顿号或逗号分隔），如：习惯、效率"
+        placeholder-class="input-ph"
+        value="{{form.tagsText}}"
+        bindinput="onFormTags"
+        maxlength="40" />
+      <view class="form-actions">
+        <button class="form-btn form-btn-ghost" bindtap="closeForm">取消</button>
+        <button class="form-btn form-btn-primary" loading="{{submitting}}" bindtap="submitForm">保存</button>
+      </view>
+    </view>
+  </view>
+</view>

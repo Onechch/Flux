@@ -1,0 +1,9 @@
+{
+  "name": "parseGoals",
+  "version": "1.0.0",
+  "description": "调用大模型从自然语言中识别独立目标列表（批量拆解第一阶段）",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}

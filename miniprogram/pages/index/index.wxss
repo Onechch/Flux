@@ -23,6 +23,28 @@
   font-size: 24rpx;
   color: #8A93A6;
 }
+.top-right {
+  display: flex;
+  align-items: center;
+}
+.kb-entry {
+  width: 56rpx;
+  height: 56rpx;
+  margin-left: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(22, 33, 62, 0.9);
+  border: 1rpx solid #24365A;
+}
+.kb-entry:active {
+  opacity: 0.7;
+}
+.kb-entry-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
 
 /* ---- 多任务警告横幅 ---- */
 .warning-banner {
@@ -131,6 +153,10 @@
   color: #6FA8DC;
   background: rgba(111, 168, 220, 0.12);
 }
+.tag-sug {
+  color: #C9A86A;
+  background: rgba(201, 168, 106, 0.14);
+}
 
 /* 任务名称（非瓶颈） */
 .task-title {
@@ -193,73 +219,443 @@
   min-width: 0;
 }
 
-/* ---- 子任务列表（展开时显示） ---- */
-.subtask-list {
-  margin-top: 20rpx;
-  padding: 8rpx 0 8rpx 56rpx;
-  border-top: 1rpx solid rgba(36, 54, 90, 0.6);
-}
-.subtask-row {
+/* ---- 当前卡点摘要行（卡点链最深处） ---- */
+.goal-clog-line {
   display: flex;
   align-items: center;
-  padding: 18rpx 12rpx;
+  flex-wrap: wrap;
+  margin-top: 20rpx;
+  padding: 14rpx 16rpx;
   border-radius: 12rpx;
+  background: rgba(229, 72, 77, 0.10);
+  border: 1rpx solid rgba(229, 72, 77, 0.30);
 }
-.subtask-row:active {
+.goal-clog-label {
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+  color: #FF6B6B;
+}
+.goal-clog-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #FF8585;
+  word-break: break-all;
+}
+
+/* ---- 任务树（多层级缩进列表：展开/折叠 + 卡点红/瓶颈橙/关键路径红边） ---- */
+.subtask-list {
+  margin-top: 16rpx;
+  padding: 8rpx 0 8rpx 20rpx;
+  border-top: 1rpx solid rgba(36, 54, 90, 0.6);
+}
+.tree-row {
+  display: flex;
+  align-items: center;
+  padding: 16rpx 12rpx;
+  border-radius: 12rpx;
+  border-left: 4rpx solid transparent;
+}
+.tree-row:active {
   background: rgba(13, 23, 48, 0.7);
 }
-.sub-check {
-  width: 44rpx;
+/* 关键路径：红边 */
+.tree-row.row-critical {
+  border-left-color: rgba(255, 68, 68, 0.55);
+}
+/* 各层瓶颈：橙边 + 微橙背景 */
+.tree-row.row-bottleneck {
+  border-left-color: #FF7E00;
+  background: rgba(255, 126, 0, 0.10);
+}
+.tree-row.row-bottleneck .tree-title {
+  color: #FF9A3D;
+  font-weight: 600;
+}
+/* 最深层卡点：红边 + 明显红背景 */
+.tree-row.row-clog {
+  border-left-color: #E5484D;
+  background: rgba(229, 72, 77, 0.14);
+}
+.tree-row.row-clog .tree-title {
+  color: #FF6B6B;
+  font-weight: 700;
+}
+.tree-arrow {
+  width: 40rpx;
   flex-shrink: 0;
-  font-size: 28rpx;
+  font-size: 24rpx;
+  color: #5E6A85;
+  transition: transform 0.2s ease;
+}
+.tree-arrow.expanded {
+  transform: rotate(90deg);
+  color: #FF9A3D;
+}
+.tree-check {
+  width: 40rpx;
+  flex-shrink: 0;
+  font-size: 26rpx;
   color: #5E6A85;
 }
-.subtask-row.done .sub-check {
+.tree-row.done .tree-check {
   color: #3FA46A;
 }
-.sub-title {
+.tree-title {
   flex: 1;
   min-width: 0;
   font-size: 26rpx;
   color: #B8C2D4;
+  line-height: 1.4;
   word-break: break-all;
 }
-.subtask-row.done .sub-title {
+.tree-row.done .tree-title {
   color: #4A5570;
   text-decoration: line-through;
 }
-.sub-hours {
+.tree-badge {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  font-size: 18rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 999rpx;
+}
+.badge-clog {
+  color: #FF6B6B;
+  background: rgba(229, 72, 77, 0.18);
+}
+.badge-bottleneck {
+  color: #FF9A3D;
+  background: rgba(255, 126, 0, 0.16);
+}
+.tree-hours {
   flex-shrink: 0;
   margin-left: 16rpx;
   font-size: 22rpx;
   color: #4A5570;
 }
-.sub-lock {
+.tree-lock {
   flex-shrink: 0;
   margin-left: 16rpx;
   font-size: 22rpx;
 }
 
-/* ---- 目标内"卡点"子任务（橙色高亮） ---- */
-.subtask-row.sub-bottleneck {
-  background: rgba(255, 126, 0, 0.10);
-  border-left: 3rpx solid #FF7E00;
+/* ---- 智能建议（瓶颈卡点怎么解；中性灰面板，与橙色卡点高亮区分） ---- */
+.suggestion-box {
+  margin-top: 20rpx;
+  padding: 20rpx;
+  border-radius: 16rpx;
+  background: rgba(148, 163, 184, 0.09);
+  border: 1rpx solid rgba(148, 163, 184, 0.25);
 }
-.subtask-row.sub-bottleneck .sub-title {
-  color: #FF9A3D;
+.sug-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16rpx;
+}
+.sug-box-title {
+  font-size: 24rpx;
   font-weight: 600;
+  color: #AEB9CC;
 }
-.subtask-row.sub-bottleneck .sub-check {
-  color: #FF9A3D;
+.sug-box-source {
+  font-size: 20rpx;
+  color: #6E7A90;
 }
-.sub-tag-clog {
+.sug-card {
+  padding: 18rpx 16rpx;
+  border-radius: 12rpx;
+  background: rgba(13, 23, 48, 0.55);
+  margin-bottom: 14rpx;
+}
+.sug-card:last-child {
+  margin-bottom: 0;
+}
+.sug-action {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #D7DEEA;
+  line-height: 1.5;
+}
+.sug-line {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 10rpx;
+  font-size: 23rpx;
+  color: #8B97AC;
+  line-height: 1.6;
+}
+.sug-label {
+  flex-shrink: 0;
+  margin-right: 12rpx;
+  padding: 0 10rpx;
+  font-size: 20rpx;
+  color: #6E7A90;
+  background: rgba(148, 163, 184, 0.14);
+  border-radius: 6rpx;
+}
+.sug-btns {
+  display: flex;
+  align-items: center;
+  margin-top: 18rpx;
+}
+.sug-btn {
+  flex: 1;
+  text-align: center;
+  padding: 12rpx 0;
+  margin-right: 14rpx;
+  font-size: 23rpx;
+  border-radius: 999rpx;
+}
+.sug-btn:last-child {
+  margin-right: 0;
+}
+.sug-btn:active {
+  opacity: 0.75;
+}
+.sug-btn-adopt {
+  flex: 1.4;
+  color: #16233F;
+  font-weight: 600;
+  background: linear-gradient(135deg, #FFB25C, #FF8A2A);
+}
+.sug-btn-dismiss {
+  color: #AEB9CC;
+  background: rgba(148, 163, 184, 0.14);
+}
+.sug-btn-feedback {
+  color: #6E7A90;
+  background: transparent;
+  border: 1rpx solid rgba(148, 163, 184, 0.3);
+}
+
+/* ---- 补充情况（用户上下文 → Agent 重新生成建议） ---- */
+
+/* 重新生成加载态 */
+.ctx-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 0;
+}
+.ctx-loading-spinner {
+  width: 26rpx;
+  height: 26rpx;
+  margin-right: 14rpx;
+  border: 4rpx solid rgba(255, 138, 42, 0.25);
+  border-top-color: #FF8A2A;
+  border-radius: 50%;
+  animation: ctxSpin 0.8s linear infinite;
+}
+@keyframes ctxSpin {
+  to { transform: rotate(360deg); }
+}
+.ctx-loading-text {
+  font-size: 24rpx;
+  color: #C88A4A;
+}
+
+/* 有用反馈（补充情况版建议，👍/👎） */
+.ctx-helpful {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 16rpx;
+}
+.ctx-helpful-q {
+  font-size: 22rpx;
+  color: #6E7A90;
+  margin-right: 16rpx;
+}
+.ctx-helpful-btn {
+  width: 56rpx;
+  height: 56rpx;
+  margin-left: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.12);
+}
+.ctx-helpful-btn:active {
+  opacity: 0.7;
+}
+
+/* 已补充标签行（编辑入口） */
+.ctx-applied {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 10rpx;
+  background: rgba(201, 168, 106, 0.10);
+  border: 1rpx dashed rgba(201, 168, 106, 0.4);
+}
+.ctx-applied-tags {
+  flex: 1;
+  font-size: 22rpx;
+  color: #C9A86A;
+  line-height: 1.5;
+  word-break: break-all;
+}
+.ctx-applied-edit {
   flex-shrink: 0;
   margin-left: 16rpx;
-  font-size: 20rpx;
-  color: #FF9A3D;
-  background: rgba(255, 126, 0, 0.16);
-  padding: 4rpx 12rpx;
+  font-size: 22rpx;
+  color: #C9A86A;
+  font-weight: 600;
+}
+.ctx-applied:active {
+  opacity: 0.75;
+}
+
+/* 补充情况入口（文字链接样式，不抢眼但可点击） */
+.ctx-entry {
+  margin-top: 16rpx;
+  padding: 10rpx 0;
+  text-align: center;
+  font-size: 22rpx;
+  color: #8A93A6;
+}
+.ctx-entry:active {
+  color: #C9A86A;
+}
+
+/* 补充情况面板 */
+.ctx-panel {
+  margin-top: 16rpx;
+  padding: 20rpx;
+  border-radius: 12rpx;
+  background: rgba(13, 23, 48, 0.55);
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
+  animation: fadeIn 0.25s ease;
+}
+.ctx-panel-title {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #AEB9CC;
+}
+.ctx-quick-title {
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: #6E7A90;
+}
+.ctx-quick-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 12rpx;
+}
+.ctx-quick-tag {
+  padding: 10rpx 24rpx;
+  margin: 0 12rpx 12rpx 0;
+  font-size: 22rpx;
+  color: #8B97AC;
+  background: rgba(148, 163, 184, 0.12);
+  border: 1rpx solid transparent;
   border-radius: 999rpx;
+}
+.ctx-quick-tag.active {
+  color: #FFB25C;
+  font-weight: 600;
+  background: rgba(255, 138, 42, 0.14);
+  border-color: rgba(255, 138, 42, 0.5);
+}
+.ctx-quick-tag:active {
+  opacity: 0.75;
+}
+.ctx-textarea {
+  width: auto;
+  min-height: 120rpx;
+  margin-top: 8rpx;
+  padding: 16rpx;
+  box-sizing: border-box;
+  font-size: 24rpx;
+  color: #D5DCEA;
+  line-height: 1.6;
+  background: rgba(9, 16, 34, 0.6);
+  border-radius: 10rpx;
+  border: 1rpx solid rgba(148, 163, 184, 0.2);
+}
+.ctx-textarea-ph {
+  color: #5E6A85;
+}
+.ctx-panel-btns {
+  display: flex;
+  margin-top: 18rpx;
+}
+.ctx-cancel-btn {
+  flex: 1;
+  height: 76rpx;
+  line-height: 76rpx;
+  margin: 0;
+  padding: 0;
+  font-size: 26rpx;
+  color: #8A93A6;
+  background: transparent;
+  border: 2rpx solid #2A3C61;
+  border-radius: 14rpx;
+}
+.ctx-submit-btn {
+  flex: 1.4;
+  height: 76rpx;
+  line-height: 76rpx;
+  margin: 0 0 0 16rpx;
+  padding: 0;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: linear-gradient(135deg, #F5872A, #FF7A00);
+  border-radius: 14rpx;
+}
+.ctx-submit-btn:active,
+.ctx-cancel-btn:active {
+  opacity: 0.8;
+}
+
+/* ---- 删除按钮（目标行右侧，弱化展示、按下显红） ---- */
+.goal-refine {
+  flex-shrink: 0;
+  width: 56rpx;
+  height: 56rpx;
+  margin-left: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.goal-refine:active {
+  opacity: 0.7;
+}
+.goal-refine-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+.goal-delete {
+  flex-shrink: 0;
+  width: 56rpx;
+  height: 56rpx;
+  margin-left: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+.goal-delete-icon {
+  font-size: 28rpx;
+  color: #5A667C;
+  line-height: 1;
+}
+.goal-delete:active {
+  background: rgba(229, 72, 77, 0.15);
+}
+.goal-delete:active .goal-delete-icon {
+  color: #E5484D;
 }
 
 /* ---- 完成按钮 ---- */

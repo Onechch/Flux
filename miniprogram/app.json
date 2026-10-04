@@ -2,7 +2,8 @@
   "pages": [
     "pages/index/index",
     "pages/breakdown/index",
-    "pages/fluctuation/index"
+    "pages/fluctuation/index",
+    "pages/knowledge/index"
   ],
   "window": {
     "navigationBarBackgroundColor": "#1B2A4A",

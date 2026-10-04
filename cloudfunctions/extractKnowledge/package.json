@@ -1,0 +1,9 @@
+{
+  "name": "extractKnowledge",
+  "version": "1.0.0",
+  "description": "对话知识提取：分析用户反馈，提取工作习惯/资源约束/经验教训/任务特征，供知识库沉淀",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~4.0.2"
+  }
+}
