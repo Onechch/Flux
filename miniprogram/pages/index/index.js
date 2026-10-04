@@ -725,9 +725,13 @@ Page({
     this.setData({ submitting: true })
     wx.showLoading({ title: '删除中…', mask: true })
     try {
-      // 删除的是当前瓶颈：先落库最后一次专注增量，再停表（避免增量写到已删除的文档）
+      // 先结算瓶颈未落库的专注增量，再动数据。
+      // 原因：删除后紧接着的 analyzeBottleneck 会重设专注计时起点（瓶颈切换）
+      // 或在只剩 1 个目标时直接停表 —— 两者都会丢弃 focusStartTs 以来的增量。
+      // 原先只在"删的就是瓶颈"时结算，删除其他目标时增量会被静默丢掉。
+      await this.flushElapsed()
+      // 删除的是当前瓶颈：停表（避免增量写到已删除的文档）
       if (id === this.data.bottleneckId) {
-        await this.flushElapsed()
         this.stopTimer()
         this.focusStartTs = null
       }

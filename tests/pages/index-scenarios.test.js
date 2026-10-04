@@ -859,6 +859,28 @@ test('C8 异常：删除当前瓶颈前先结算专注时长，再由剩余目�
   assert.equal(storedTasks(storage).length, 2)
 })
 
+test('C9 异常：删除非瓶颈目标时，瓶颈已专注但未落库的时长必须结算（不得静默丢弃）', async (t) => {
+  const tasks = [
+    raw('g1', { title: '瓶颈', estimatedHours: 10, actualHours: 0, status: 'in_progress', isBottleneck: true }),
+    raw('g2', { title: '陪跑', estimatedHours: 2 }),
+    raw('g3', { title: '陪跑2', estimatedHours: 1 }),
+  ]
+  const { page, storage } = await loadIndexPage(tasks, t)
+  // 模拟距上次落库已专注 1 小时
+  page.focusStartTs = Date.now() - 3600 * 1000
+
+  await page.executeDeleteGoal('g2')
+
+  assert.equal(page.data.bottleneckId, 'g1', '瓶颈未被删除，锁定关系不变')
+  assert.ok(page.focusStartTs, '计时不应被中断')
+  const g1 = storedOf(storage, 'g1')
+  assert.ok(
+    g1.actualHours > 0.9 && g1.actualHours < 1.1,
+    '瓶颈已耗时应在删除任意目标时被结算落库，实际 ' + g1.actualHours
+  )
+  assert.equal(storedTasks(storage).length, 2)
+})
+
 test('C10 异常：本地存储写入失败（调优入口）→ 静默降级但仍完成跳转', async (t) => {
   const { page, wx } = await loadIndexPage([raw('g1', {})], t)
   const origSet = wx.setStorageSync
