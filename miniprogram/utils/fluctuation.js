@@ -254,6 +254,9 @@ function detectRisks(forest, metrics, opts) {
       goalId: node._rootId,
       goalTitle: rootNode.title,
       ownChanges: m.ownChanges,
+      // 放大比的分母（页面直接展示"本层 N 次 / 源头 M 次"，无需再查一次数据）
+      rootChanges: rootM.ownChanges,
+      parentChanges: parentM ? parentM.ownChanges : 0,
       subtreeChanges: m.subtreeChanges,
       subtreeNodes: m.subtreeNodes,
       recentChanges: m.recentChanges,

@@ -226,9 +226,27 @@ test('amplified：需求源头 0 次变更、子节点 3 次 → 判定放大（
   const r = res.risks[0]
   assert.equal(r.pathAmp, 3)
   assert.equal(r.localAmp, 3)
+  assert.equal(r.rootChanges, 0) // 放大比的分母，供页面直接展示
+  assert.equal(r.parentChanges, 0)
   assert.equal(r.goalId, 'g')
   assert.equal(r.goalTitle, '目标')
   assert.ok(r.message.indexOf('3 倍') > -1)
+})
+
+test('amplified：证据字段 rootChanges / parentChanges 如实反映分母', () => {
+  const res = fluctuation.analyzeFluctuation(
+    [
+      task('g', { modificationCount: 3 }), // 源头 3 次（未达 unstable_root 阈值 4）
+      task('a', { parentGoalId: 'g', modificationCount: 3 }),
+      task('a1', { parentGoalId: 'a', modificationCount: 9 }),
+    ],
+    { now: NOW }
+  )
+  const a1 = res.risks.find((r) => r.taskId === 'a1')
+  assert.ok(a1, 'a1 相对源头放大 3 倍应判定')
+  assert.equal(a1.rootChanges, 3)
+  assert.equal(a1.parentChanges, 3)
+  assert.equal(a1.localAmp, 3)
 })
 
 test('amplified：子节点变更 2 次低于噪声地板（minChanges=3）不判定', () => {
