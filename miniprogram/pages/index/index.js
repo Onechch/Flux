@@ -1356,38 +1356,47 @@ Page({
 
     this.setData({ submitting: true })
 
-    // 结算实际耗时（累计落库值 + 本次会话专注增量）
-    let actualHours = task.actualHours || 0
-    if (task.status === 'in_progress' && this.focusStartTs) {
-      actualHours += (Date.now() - this.focusStartTs) / 3600000
-    }
-    this.focusStartTs = null
-    actualHours = +actualHours.toFixed(2)
-
-    // 播放破裂动画（0.6s）
-    this.setData({ showBurst: true, burstTaskId: id })
-    await this.delay(BURST_MS)
-
-    // 更新任务状态并同步云端
-    const tasks = this.data.tasks.map((t) => {
-      if (t._id === id) {
-        return Object.assign({}, t, {
-          status: 'completed',
-          isBottleneck: false,
-          actualHours,
-          displayHours: actualHours.toFixed(1),
-          _dirty: true,
-        })
+    try {
+      // 结算实际耗时（累计落库值 + 本次会话专注增量）
+      let actualHours = task.actualHours || 0
+      if (task.status === 'in_progress' && this.focusStartTs) {
+        actualHours += (Date.now() - this.focusStartTs) / 3600000
       }
-      return t
-    })
-    await this.syncTasksToCloud(tasks)
-    this.setData({ tasks, showBurst: false, burstTaskId: null })
+      this.focusStartTs = null
+      actualHours = +actualHours.toFixed(2)
 
-    // 重新分析瓶颈 + 多任务检测
-    this.analyzeBottleneck(tasks)
-    this.checkMultiTasking(tasks)
-    wx.showToast({ title: '瓶颈已突破！', icon: 'success' })
-    this.setData({ submitting: false })
+      // 播放破裂动画（0.6s）
+      this.setData({ showBurst: true, burstTaskId: id })
+      await this.delay(BURST_MS)
+
+      // 更新任务状态并同步云端
+      const tasks = this.data.tasks.map((t) => {
+        if (t._id === id) {
+          return Object.assign({}, t, {
+            status: 'completed',
+            isBottleneck: false,
+            actualHours,
+            displayHours: actualHours.toFixed(1),
+            _dirty: true,
+          })
+        }
+        return t
+      })
+      await this.syncTasksToCloud(tasks)
+      this.setData({ tasks, showBurst: false, burstTaskId: null })
+
+      // 重新分析瓶颈 + 多任务检测
+      this.analyzeBottleneck(tasks)
+      this.checkMultiTasking(tasks)
+      wx.showToast({ title: '瓶颈已突破！', icon: 'success' })
+    } catch (err) {
+      console.error('[index] 完成大目标失败', err)
+      wx.showToast({ title: '操作失败，请重试', icon: 'none' })
+    } finally {
+      // submitting 必须无条件复位：页面没有任何其他复位路径，
+      // 一旦卡在 true，completeTask / completeSubtaskById / onCtxSubmit 会全部
+      // 直接 return —— 整页变成只读，只能杀掉小程序重进。
+      this.setData({ showBurst: false, burstTaskId: null, submitting: false })
+    }
   },
 })

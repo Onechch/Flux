@@ -1000,3 +1000,29 @@ test('C15 异常：字段类型脏数据（一条坏记录）不得让整个首�
     assert.equal(typeof bad.estimatedHours, 'number', name + '：estimatedHours 应收敛为数值')
   }
 })
+
+test('C16 异常：完成目标过程中内部抛错，提交锁必须复位（否则整页只读）', async (t) => {
+  const { page, storage, wx, treeUtils } = await loadIndexPage(threeGoals(), t)
+  // 注入树分析异常：completeTask 收尾要重算瓶颈 → rerender → buildGoalView
+  const origMeta = treeUtils.computeTreeMeta
+  treeUtils.computeTreeMeta = () => {
+    throw new Error('树分析异常')
+  }
+
+  await page.completeTask(ds('g1'))
+  treeUtils.computeTreeMeta = origMeta
+
+  // 页面没有任何其他复位 submitting 的路径，卡住即整页只读
+  assert.equal(page.data.submitting, false, '必须无条件复位提交锁')
+  assert.equal(page.data.showBurst, false, '破裂动画标记必须复位')
+  assert.equal(page.data.burstTaskId, null)
+  assert.ok(hasToast(wx, '操作失败'), '应给出可见反馈，而不是静默卡死')
+  assert.equal(viewOf(page, 'g1').status, 'completed', '数据已落库，不回滚（以库为准）')
+
+  // 锁已解除：后续写操作仍可用（否则整页只读）
+  page.onTitleInput({ detail: { value: '异常后仍可添加' } })
+  page.onHoursInput({ detail: { value: '1' } })
+  await page.submitTask()
+  assert.equal(storedTasks(storage).length, 4, '提交锁解除后应能正常新增目标')
+  assert.equal(hasToast(wx, '添加失败'), false)
+})
