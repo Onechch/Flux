@@ -40,6 +40,7 @@ const treeUtils = require('../../utils/tree')
 const TICK_MS = 10 * 1000        // 专注计时显示刷新间隔
 const PERSIST_EVERY_TICKS = 6    // 每 6 次刷新（约 60s）将已耗时落库一次
 const BURST_MS = 600             // 瓶颈破裂动画时长
+const TITLE_MAX = 30             // 大目标标题上限（与 index.wxml 的 maxlength="30" 一致）
 const AI_SUG_TTL_MS = 30 * 60 * 1000      // AI 建议缓存有效期
 const AI_SUG_FAIL_COOLDOWN_MS = 5 * 60 * 1000 // AI 失败冷却（避免重试风暴）
 
@@ -627,7 +628,9 @@ Page({
   /** 添加任务（大目标）：成功后 loadTasks 刷新 → 瓶颈重算 → 多任务检测联动 */
   async submitTask() {
     if (this.data.submitting) return // 防重复点击
-    const title = (this.data.form.title || '').trim()
+    // 逻辑层再截断一次：WXML 的 maxlength 只在 UI 层拦输入，
+    // 粘贴/程序化赋值/其他入口仍可能送进超长标题（与 tree.js 的 title 截断口径一致）
+    const title = (this.data.form.title || '').trim().slice(0, TITLE_MAX)
     const hours = parseFloat(this.data.form.estimatedHours)
     if (!title) {
       wx.showToast({ title: '请输入任务名称', icon: 'none' })

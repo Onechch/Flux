@@ -753,6 +753,31 @@ test('B13 边界：进度百分比（预估为 0 / 实际超过预估）', async
   assert.equal(page.calcProgress(1, 4), 25)
 })
 
+test('B14 边界：标题超长时逻辑层也要截断（UI 的 maxlength 不是唯一防线）', async (t) => {
+  const { page, storage, wx } = await loadIndexPage([], t)
+
+  // 绕过 UI 直接送入 60 字（粘贴/程序化赋值/其他入口）
+  page.onTitleInput({ detail: { value: '长'.repeat(60) } })
+  page.onHoursInput({ detail: { value: '2' } })
+  await page.submitTask()
+
+  assert.equal(storedTasks(storage).length, 1)
+  assert.equal(storedTasks(storage)[0].title.length, 30, '逻辑层应截断到与 WXML maxlength 一致的 30 字')
+  assert.equal(wx.__calls.toast.length, 0)
+
+  // 恰好 30 字不改动
+  page.onTitleInput({ detail: { value: '中'.repeat(30) } })
+  page.onHoursInput({ detail: { value: '2' } })
+  await page.submitTask()
+  assert.equal(storedTasks(storage)[1].title, '中'.repeat(30))
+
+  // 先 trim 再截断：前导空白不占额度
+  page.onTitleInput({ detail: { value: '   ' + '短'.repeat(4) } })
+  page.onHoursInput({ detail: { value: '2' } })
+  await page.submitTask()
+  assert.equal(storedTasks(storage)[2].title, '短短短短')
+})
+
 /* ==================================================================== *
  * C. 异常情况
  * ==================================================================== */
