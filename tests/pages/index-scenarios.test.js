@@ -504,6 +504,28 @@ test('A17 正常路径：提交补充后再次点「编辑补充」，面板应�
   assert.equal(goalOf(page, 'g1').ctxText, '设备排不上队')
 })
 
+test('A20 正常路径：通过树行点击完成叶子任务（端到端，含联动与破裂动画）', async (t) => {
+  const { page, storage, wx } = await loadIndexPage(deepTree(), t)
+
+  // 有下级的行：点击切换展开/折叠
+  page.onTreeRowTap(dsRow('g1', rowOf(page, 'g1', 'm1')))
+  assert.equal(rowOf(page, 'g1', 'a'), undefined, '折叠后叶子不再渲染')
+  page.onTreeRowTap(dsRow('g1', rowOf(page, 'g1', 'm1')))
+  assert.ok(rowOf(page, 'g1', 'a'), '再点应重新展开')
+
+  // 叶子行：点击完成。onTreeRowTap 返回内部 Promise，可直接 await 到动画与落库结束
+  await page.onTreeRowTap(dsRow('g1', rowOf(page, 'g1', 'a')))
+  assert.equal(viewOf(page, 'a').status, 'completed')
+  assert.equal(storedOf(storage, 'a').status, 'completed')
+
+  await page.onTreeRowTap(dsRow('g1', rowOf(page, 'g1', 'b')))
+  assert.equal(viewOf(page, 'b').status, 'completed')
+  assert.equal(viewOf(page, 'm1').status, 'completed', '中间层联动完成')
+  assert.equal(viewOf(page, 'g1').status, 'completed', '大目标联动完成')
+  assert.ok(hasToast(wx, '大目标达成'))
+  assert.equal(page.data.submitting, false, '结束后不得残留提交锁')
+})
+
 test('A18 正常路径：忽略名单有上限，长期使用不会无限增长', async (t) => {
   const { page, storage } = await loadIndexPage(sugTree(), t)
 

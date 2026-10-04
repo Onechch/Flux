@@ -1158,6 +1158,8 @@ Page({
    * 树行点击：有下级的行切换展开/折叠；叶子行切换完成状态。
    * 中间层节点由"全部子任务完成"联动自动完成，不支持手动完成
    * （避免出现"父已完成但子未完成"的不一致状态）。
+   * @returns {Promise|undefined} 叶子分支返回完成操作的 Promise（bindtap 会忽略返回值，
+   *   返回它是为了让调用方/测试能 await 到动画与落库结束）
    */
   onTreeRowTap(e) {
     const { key, has, goal, id } = e.currentTarget.dataset
@@ -1170,7 +1172,7 @@ Page({
       this.rerender()
       return
     }
-    this.completeSubtaskById(id)
+    return this.completeSubtaskById(id)
   },
 
   /** 找任务的根目标 ID（沿 parentGoalId 祖先链上溯；guard 防环） */
