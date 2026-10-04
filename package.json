@@ -1,0 +1,14 @@
+{
+  "name": "flux",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Flux —— 瓶颈管理微信小程序（约束理论 TOC + 利特尔法则 + 关键路径法 CPM）",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.js\"",
+    "test:unit": "node --test \"tests/unit/*.test.js\"",
+    "test:pages": "node --test \"tests/pages/*.test.js\""
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
